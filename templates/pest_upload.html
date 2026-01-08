@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Pest Detection</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+  <style>
+    /* Global Styles */
+    body {
+      background-color: #bdecb6;
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      /* Prevent horizontal scroll on mobile */
+      overflow-x: hidden; 
+    }
+
+    /* Desktop Layout (Default) 
+      - Side by side
+      - Fixed viewport height
+    */
+    .main-container {
+      display: flex;
+      width: 100%;
+      height: calc(100vh - 40px); /* Fill screen minus body padding */
+      gap: 20px;
+    }
+
+    /* Common Card Styles */
+    .upload-column,
+    .result-box {
+      background-color: white;
+      padding: 40px;
+      border-radius: 30px;
+      border: 3px solid #769f53;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Left Column (Upload) */
+    .upload-column {
+      flex: 1;
+      justify-content: center;
+      text-align: center;
+      /* On desktop, allow this side to scroll if image is huge, though unlikely */
+      overflow-y: auto; 
+    }
+
+    /* Right Column (Results) */
+    .result-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      /* Important for nested flex scrolling */
+      min-width: 0; 
+    }
+
+    .result-box {
+      text-align: left;
+      height: 100%;
+      flex-grow: 1;
+      /* Ensure flex calculation works for internal scrolling */
+      min-height: 0; 
+    }
+
+    /* Internal Scroll Area for Results */
+    .result-box-content {
+      overflow-y: auto;
+      padding-right: 10px; /* Space for scrollbar */
+      height: 100%;
+    }
+
+    /* Custom Scrollbar for nicer UI */
+    .result-box-content::-webkit-scrollbar {
+      width: 8px;
+    }
+    .result-box-content::-webkit-scrollbar-track {
+      background: #f1f1f1; 
+      border-radius: 4px;
+    }
+    .result-box-content::-webkit-scrollbar-thumb {
+      background: #a8d6a8; 
+      border-radius: 4px;
+    }
+    .result-box-content::-webkit-scrollbar-thumb:hover {
+      background: #769f53; 
+    }
+
+    /* Typography */
+    h1 {
+      color: #2f5d2f;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    h4 {
+      color: #2f5d2f;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Buttons */
+    .btn-submit {
+      background-color: #769f53;
+      color: white;
+      font-weight: 600;
+      padding: 12px 25px;
+      border-radius: 10px;
+      transition: 0.3s;
+      border: none;
+    }
+
+    .btn-submit:hover {
+      background-color: #628442;
+      transform: translateY(-2px);
+      color: white;
+    }
+
+    .btn-cancel {
+      background-color: #f8f9fa;
+      color: #6c757d;
+      border: 1px solid #ced4da;
+      font-weight: 600;
+      padding: 12px 25px;
+      border-radius: 10px;
+      transition: 0.3s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-cancel:hover {
+      background-color: #e2e6ea;
+      color: #6c757d;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap; /* Buttons wrap on very small screens */
+    }
+
+    /* File Upload Area */
+    .file-upload-box {
+      background-color: #e6ffe6;
+      border: 2px dashed #a8d6a8;
+      border-radius: 15px;
+      padding: 30px 20px;
+      color: #4a7c4a;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      margin-bottom: 20px;
+      display: block; /* Ensures label behaves like a block */
+      transition: background-color 0.3s;
+    }
+
+    .file-upload-box:hover {
+      background-color: #d4fdd4;
+    }
+
+    .file-upload-box input[type="file"] {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    /* Image Preview */
+    .image-container {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 10px;
+      border: 1px solid #a8d6a8;
+    }
+
+    .uploaded-image {
+      max-height: 300px;
+      max-width: 100%;
+      object-fit: contain;
+      border-radius: 10px;
+    }
+
+    /* MOBILE / TABLET RESPONSIVENESS 
+      (Triggers below 992px)
+    */
+    @media (max-width: 992px) {
+      body {
+        padding: 15px;
+        /* Allow page scroll on mobile */
+        height: auto; 
+      }
+
+      .main-container {
+        flex-direction: column;
+        /* Remove fixed height so content expands naturally */
+        height: auto; 
+        gap: 30px;
+      }
+
+      .upload-column,
+      .result-box {
+        padding: 25px; /* Reduce padding on mobile */
+        width: 100%;
+      }
+
+      /* On mobile, we don't want internal scrolling */
+      /* We want the box to grow with content */
+      .result-box {
+        height: auto; 
+        min-height: 300px;
+      }
+
+      .result-box-content {
+        overflow-y: visible; /* Let the page handle scroll */
+        height: auto;
+      }
+
+      h1 { font-size: 1.75rem; }
+      
+      .btn-submit, .btn-cancel {
+        width: 100%; /* Full width buttons on mobile */
+        margin-bottom: 5px;
+      }
+      
+      .button-group {
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main-container">
+
+    <div class="upload-column">
+      <div> 
+        <img src="https://cdn-icons-png.flaticon.com/512/7664/7664000.png" alt="Leaf Logo" width="60" class="mb-3">
+        <h1>Pest Image Detection</h1>
+        <h4>Upload an Image for Identification</h4>
+
+        <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
+          <label for="file-upload" class="file-upload-box">
+            <input type="file" name="file" id="file-upload" accept="image/*" required onchange="previewImage(event)">
+            <div class="d-flex flex-column align-items-center">
+              <i class="fas fa-image fa-2x mb-2"></i>
+              <span>Click to Upload Image</span>
+            </div>
+          </label>
+          
+          <div class="button-group">
+            <button type="submit" class="btn btn-submit">Upload and Identify</button>
+            <a href="/user" class="btn btn-cancel">Cancel</a>
+          </div>
+        </form>
+
+        <div class="image-container" id="preview-container" style="display: {% if image_url %}flex{% else %}none{% endif %};">
+          <img id="image-preview" src="{{ image_url or '#' }}" alt="Uploaded Image" class="uploaded-image">
+        </div>
+
+      </div>
+    </div>
+
+    <div class="result-column">
+      <div class="result-box">
+        {% if pest %}
+        <div class="result-box-content">
+          <h3 class="text-success fw-bold mb-3">{{ pest.common_name }}</h3>
+          <p><strong>Scientific Name:</strong> {{ pest.scientific_name }}</p>
+          <p><strong>Order:</strong> {{ pest.order_name }}</p>
+          <p><strong>Family:</strong> {{ pest.family }}</p>
+          <hr>
+          <h5 class="fw-bold text-success mt-4 mb-3">Treatment Recommendations</h5>
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item"><strong>Cultural:</strong> {{ pest.cultural_methods or "N/A" }}</li>
+            <li class="list-group-item"><strong>Biological:</strong> {{ pest.biological_control or "N/A" }}</li>
+            <li class="list-group-item"><strong>Mechanical:</strong> {{ pest.mechanical_control or "N/A" }}</li>
+            <li class="list-group-item"><strong>Chemical:</strong> {{ pest.chemical_control or "N/A" }}</li>
+            <li class="list-group-item"><strong>Sanitation:</strong> {{ pest.sanitation or "N/A" }}</li>
+          </ul>
+        </div>
+        {% elif error %}
+        <div class="d-flex align-items-center justify-content-center h-100">
+          <div class="alert alert-danger mb-0 w-100 text-center">{{ error }}</div>
+        </div>
+        {% else %}
+        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-muted">
+          <i class="fas fa-search fa-3x mb-3" style="color: #a8d6a8;"></i>
+          <p class="fs-5">Results will be displayed here after analysis.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    function previewImage(event) {
+      var reader = new FileReader();
+      reader.onload = function(){
+        var output = document.getElementById('image-preview');
+        output.src = reader.result;
+        document.getElementById('preview-container').style.display = 'flex';
+      };
+      reader.readAsDataURL(event.target.files[0]);
+    }
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login | AI Pest Detection</title>
+  <style>
+    /* Global Reset for better sizing */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #b9e7b2;
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh; /* changed to min-height for safety */
+      margin: 0;
+      padding: 20px; /* Adds space around the edge on very small screens */
+    }
+
+    .login-box {
+      background: white;
+      border: 2px solid #6b8e23;
+      border-radius: 20px;
+      /* Responsive Width Settings */
+      width: 100%;
+      max-width: 450px;
+      padding: 50px 40px; /* Reduced side padding slightly */
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      text-align: center;
+      animation: fadeIn 0.8s ease-in-out;
+    }
+
+    .login-box h1 {
+      color: #4b6043;
+      font-size: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+
+    .login-box h1 span {
+      font-size: 36px;
+    }
+
+    label {
+      display: block;
+      text-align: left;
+      margin-top: 20px;
+      font-weight: 600;
+      color: #4b6043;
+      letter-spacing: 1px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #6b8e23;
+      border-radius: 25px;
+      font-size: 16px;
+      outline: none;
+      margin-top: 8px;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: #4a6b1c;
+      box-shadow: 0 0 5px #a2d39b;
+    }
+
+    .button-group {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 40px;
+    }
+
+    button {
+      width: 120px;
+      padding: 12px 0;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .login-btn {
+      background-color: #6b8e23;
+      color: white;
+    }
+
+    .login-btn:hover {
+      background-color: #4a6b1c;
+    }
+
+    .cancel-btn {
+      background-color: #a7d129;
+      color: white;
+    }
+
+    .cancel-btn:hover {
+      background-color: #8fbf22;
+    }
+
+    .error {
+      color: #b71c1c;
+      margin-top: 15px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* --- MOBILE RESPONSIVENESS --- */
+    @media (max-width: 480px) {
+      .login-box {
+        padding: 40px 25px; /* Smaller padding on mobile */
+      }
+
+      .login-box h1 {
+        font-size: 26px; /* Smaller header */
+      }
+      
+      .login-box h1 span {
+        font-size: 28px;
+      }
+
+      .button-group {
+        flex-direction: column; /* Stack buttons vertically */
+        gap: 15px;
+      }
+
+      button {
+        width: 100%; /* Full width buttons */
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="login-box">
+    <h1><span>🔒</span> Admin Login</h1>
+
+    <form method="POST" action="/login">
+      <label for="username">USERNAME</label>
+      <input type="text" id="username" name="username" placeholder="Enter your username" required />
+
+      <label for="password">PASSWORD</label>
+      <input type="password" id="password" name="password" placeholder="Enter your password" required />
+      
+      {% if error %}
+      <p class="error">{{ error }}</p>
+      {% endif %}
+
+      <div class="button-group">
+        <button type="submit" class="login-btn">LOGIN</button>
+        <button type="button" class="cancel-btn" onclick="window.location.href='/'">
+          CANCEL
+        </button>
+      </div>
+    </form>
+  </div>
+</body>
+
+</html>

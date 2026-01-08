@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Pest Detection</title>
+  <style>
+    /* --- RESET & BASICS --- */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #b6e8b0;
+      font-family: "Poppins", sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    /* --- HEADER --- */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #a8e6a2;
+      padding: 15px 5%;
+      border-bottom: 2px solid #7bb661;
+      min-height: 75px;
+    }
+
+    header h1 {
+      color: #1b5e20;
+      font-size: clamp(24px, 4vw, 42px);
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0;
+      letter-spacing: 1px;
+    }
+
+    /* --- MAIN LAYOUT --- */
+    .main {
+      background-color: #e0f6cd;
+      border-radius: 15px;
+      /* Responsive Width */
+      width: 95%;
+      max-width: 1600px;
+      /* Remove fixed height to allow content to grow */
+      min-height: 80vh; 
+      margin: 30px auto;
+      padding: 40px;
+      
+      /* Grid Layout */
+      display: grid;
+      grid-template-columns: 1fr 2fr; /* Ratio: Camera takes 1 part, Data takes 2 parts */
+      gap: 35px;
+      align-items: start;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    /* --- LEFT PANEL (CAMERA) --- */
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .camera-box {
+      background-color: #eaffea;
+      border: 2px solid #557b6d;
+      border-radius: 15px;
+      width: 100%;
+      max-width: 500px; /* Prevent it from getting too huge */
+      aspect-ratio: 4 / 5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      margin-top: 0;
+    }
+
+    .camera-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .controls {
+      margin-top: 25px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      width: 100%;
+    }
+
+    .status {
+      background-color: #9ccc65;
+      color: #1b5e20;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      text-align: center;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .button-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap; /* Allow buttons to stack on tiny screens */
+      width: 100%;
+    }
+
+    .apply-btn,
+    .cancel-btn {
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 1; /* Buttons share space equally */
+      min-width: 140px; /* Don't get too small */
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .apply-btn {
+      background-color: #6e9f3f;
+    }
+    .cancel-btn {
+      background-color: #557b6d;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .apply-btn:hover { background-color: #588a31; }
+    .cancel-btn:hover { background-color: #355f4e; }
+
+    .camera-on {
+      background-color: #4caf50 !important;
+      box-shadow: 0 0 12px 2px rgba(76, 175, 80, 0.6);
+    }
+    .camera-off {
+      background-color: #557b6d !important;
+      opacity: 0.85;
+    }
+
+    /* --- RIGHT PANEL (DATA) --- */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .photo-name-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .photo-box {
+      background-color: #eaffea;
+      border: 2px solid #9ccc65;
+      border-radius: 12px;
+      width: 150px; /* Fixed sizing for the thumbnail is usually safer */
+      height: 150px;
+      flex-shrink: 0; /* Prevent squishing */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #1b5e20;
+      font-weight: 600;
+      text-align: center;
+      padding: 5px;
+      font-size: 0.9rem;
+    }
+
+    .pest-name-field {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .pest-name-field label,
+    .classification label,
+    .treatments label {
+      font-weight: 700;
+      color: #1b5e20;
+      font-size: 1rem;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .display-box {
+      width: 100%;
+      background-color: #eaffea;
+      border: 2px solid #9ccc65;
+      border-radius: 10px;
+      padding: 12px 15px;
+      font-size: 1rem;
+      color: #1b5e20;
+      font-weight: 600;
+      line-height: 1.4;
+      min-height: 50px;
+      white-space: pre-wrap;
+    }
+
+    .classification {
+      background-color: #eaffea;
+      border: 2px solid #9ccc65;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h2 {
+      text-align: center;
+      color: #1b5e20;
+      font-size: 22px;
+      margin: 15px 0 5px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* --- TREATMENTS GRID --- */
+    .treatments {
+      display: grid;
+      /* Auto-fit: Creates as many columns as fit (min 200px), then wraps */
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+    }
+
+    .treatments div {
+      background-color: #eaffea;
+      border: 2px solid #9ccc65;
+      border-radius: 10px;
+      text-align: center;
+      padding: 20px;
+      color: #1b5e20;
+      font-size: 0.9rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 140px;
+    }
+
+    .treatments div .display-box {
+      margin-top: auto; /* Pushes content down if needed, or keeps spacing consistent */
+      border: none;
+      background: transparent;
+      padding: 5px 0 0 0;
+      font-weight: normal;
+      min-height: auto;
+    }
+
+    /* --- RESPONSIVE MEDIA QUERIES --- */
+
+    /* Tablet & Small Laptop (Stack the main panels) */
+    @media (max-width: 1024px) {
+      .main {
+        grid-template-columns: 1fr; /* Stack vertically */
+        padding: 25px;
+      }
+
+      .left-panel {
+        margin-bottom: 30px;
+      }
+      
+      .camera-box {
+        max-width: 400px; /* Slightly smaller on tablets */
+      }
+    }
+
+    /* Mobile (Stack everything) */
+    @media (max-width: 600px) {
+      header {
+        padding: 15px 20px;
+      }
+      
+      .main {
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 20px;
+      }
+
+      .photo-name-container {
+        flex-direction: column; /* Stack photo on top of names */
+        align-items: center;
+      }
+
+      .pest-name-field {
+        width: 100%;
+      }
+
+      .button-row {
+        flex-direction: column;
+        width: 100%;
+      }
+      
+      .apply-btn, .cancel-btn {
+        width: 100%;
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>🌿 AI Pest Detection</h1>
+  </header>
+  
+  <div class="main">
+    <div class="left-panel">
+      <div class="camera-box">
+        <img id="camera-img" src="" alt="Live stream" />
+      </div>
+
+      <div class="controls">
+        <div class="status">Status: <span id="status-text">Camera Off</span></div>
+
+        <div class="button-row">
+          <button id="startBtn" class="apply-btn">Start Detection</button>
+          <button id="cameraToggleBtn" class="apply-btn camera-off">
+            Turn Camera On
+          </button>
+        </div>
+
+        <button id="cancelBtn" class="cancel-btn">Cancel</button>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="photo-name-container">
+        <div class="photo-box" id="photoBox">Actual Photo of Pest</div>
+
+        <div class="pest-name-field">
+          <div>
+            <label for="pestName">Detected Pest Name</label>
+            <div id="pestName" class="display-box">—</div>
+          </div>
+          <div>
+            <label for="scientificName">Scientific Name</label>
+            <div id="scientificName" class="display-box">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="classification">
+        <label for="classification">Classification of Pest</label>
+        <div id="classification" class="display-box" style="min-height: auto; border:none; background: transparent; padding:0;">—</div>
+      </div>
+
+      <h2>TREATMENT RECOMMENDATIONS</h2>
+
+      <div class="treatments">
+        <div>
+          <label for="cultural">Cultural Methods</label>
+          <div id="cultural" class="display-box">—</div>
+        </div>
+        <div>
+          <label for="biological">Biological Control</label>
+          <div id="biological" class="display-box">—</div>
+        </div>
+        <div>
+          <label for="sanitation">Sanitation</label>
+          <div id="sanitation" class="display-box">—</div>
+        </div>
+        <div>
+          <label for="mechanical">Mechanical Control</label>
+          <div id="mechanical" class="display-box">—</div>
+        </div>
+        <div>
+          <label for="chemical">Chemical Control</label>
+          <div id="chemical" class="display-box">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const cameraImg = document.getElementById("camera-img");
+    const statusText = document.getElementById("status-text");
+    const detectionBtn = document.getElementById("startBtn");
+    const cameraBtn = document.getElementById("cameraToggleBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+
+    const pestNameEl = document.getElementById("pestName");
+    const scientificNameEl = document.getElementById("scientificName");
+    const classificationEl = document.getElementById("classification");
+    const photoBox = document.getElementById("photoBox");
+    const culturalEl = document.getElementById("cultural");
+    const biologicalEl = document.getElementById("biological");
+    const sanitationEl = document.getElementById("sanitation");
+    const mechanicalEl = document.getElementById("mechanical");
+    const chemicalEl = document.getElementById("chemical");
+
+    let cameraOn = false;
+    let detecting = false;
+    let pollInterval = null;
+
+    // --- Camera and Detection Handlers ---
+
+    cameraBtn.addEventListener("click", async () => {
+      cameraOn = !cameraOn;
+      if (cameraOn) {
+        // Simulating stream for UI testing - Replace with "/video_feed" in production
+        cameraImg.src = "/video_feed"; 
+        
+        cameraBtn.textContent = "Turn Camera Off";
+        cameraBtn.classList.add("camera-on");
+        cameraBtn.classList.remove("camera-off");
+        statusText.textContent = "Camera On";
+      } else {
+        cameraImg.src = "";
+        cameraBtn.textContent = "Turn Camera On";
+        cameraBtn.classList.add("camera-off");
+        cameraBtn.classList.remove("camera-on");
+        statusText.textContent = "Camera Off";
+
+        if (detecting) {
+          await fetch("/api/stop", { method: "POST" });
+          detecting = false;
+          detectionBtn.textContent = "Start Detection";
+          detectionBtn.style.backgroundColor = "#6e9f3f";
+          statusText.textContent = "Camera turned off — detection stopped.";
+          clearInterval(pollInterval);
+          alert("Camera turned off — detection stopped automatically.");
+        }
+      }
+    });
+
+    detectionBtn.addEventListener("click", async () => {
+      if (!cameraOn && !detecting) {
+        alert("Please turn on the camera before starting pest detection.");
+        return;
+      }
+
+      if (!detecting) {
+        await fetch("/api/start", { method: "POST" });
+        detecting = true;
+        detectionBtn.textContent = "Stop Detection";
+        detectionBtn.style.backgroundColor = "#b91c1c";
+        statusText.textContent = "Detecting...";
+        pollInterval = setInterval(fetchStatus, 2000);
+      } else {
+        await fetch("/api/stop", { method: "POST" });
+        detecting = false;
+        detectionBtn.textContent = "Start Detection";
+        detectionBtn.style.backgroundColor = "#6e9f3f";
+        statusText.textContent = "Stopped";
+        clearInterval(pollInterval);
+      }
+    });
+
+    cancelBtn.addEventListener("click", async () => {
+      if (detecting) {
+        if (confirm("Are you sure you want to cancel detection and exit?")) {
+          await fetch("/api/stop", { method: "POST" });
+          clearInterval(pollInterval);
+          window.location.href = "/";
+        }
+      } else {
+        window.location.href = "/";
+      }
+    });
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch("/api/status");
+        const data = await res.json();
+
+        // UPDATED: Added safety check for 'Negative' to double-ensure alert doesn't show
+        const pestDetected = data.pest_name && 
+                             data.pest_name !== '—' && 
+                             data.pest_name.toLowerCase() !== 'negative';
+
+        if (data.running && pestDetected) {
+          await fetch("/api/stop", { method: "POST" });
+          clearInterval(pollInterval);
+          detecting = false;
+          detectionBtn.textContent = "Start Detection";
+          detectionBtn.style.backgroundColor = "#6e9f3f";
+          cameraImg.src = "";
+          statusText.textContent = `PAUSED: Pest Detected (${data.pest_name})`;
+          alert(`Detection stopped! Details for ${data.pest_name} have been loaded.`);
+        }
+
+        if (!pestDetected) {
+          statusText.textContent = data.status_text || (data.running ? "Detecting..." : "Idle");
+        }
+
+        pestNameEl.textContent = data.pest_name || "—";
+        scientificNameEl.textContent = data.scientific_name || "—";
+        classificationEl.textContent = data.classification || "—";
+        culturalEl.textContent = data.cultural || "—";
+        biologicalEl.textContent = data.biological || "—";
+        sanitationEl.textContent = data.sanitation || "—";
+        mechanicalEl.textContent = data.mechanical || "—";
+        chemicalEl.textContent = data.chemical || "—";
+
+        if (data.pest_photo) {
+          photoBox.innerHTML = `<img src="${data.pest_photo}" alt="pest" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`;
+        } else {
+          photoBox.textContent = "Actual Photo of Pest";
+        }
+      } catch (err) {
+        console.error("Error fetching status:", err);
+        statusText.textContent = "Error communicating with server.";
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      cameraOn = false;
+      cameraImg.src = "";
+      statusText.textContent = "Camera Off";
+    });
+  </script>
+
+</body>
+</html>

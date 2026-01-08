@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Reset box-sizing to handle padding/borders correctly */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #b9e7b2;
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh; /* Allows scrolling on small screens */
+      margin: 0;
+      padding: 20px; /* Prevents card from touching screen edges on mobile */
+    }
+
+    .form-box {
+      background: white;
+      border: 2px solid #6b8e23;
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      width: 100%;
+      max-width: 480px; /* Fixed width on desktop, fluid on mobile */
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    h1 {
+      color: #4b6043;
+      margin-bottom: 25px;
+      font-size: 1.8rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 8px;
+      border: 2px solid #6b8e23;
+      margin-bottom: 15px;
+      font-size: 16px; /* Prevents auto-zoom on iOS */
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    input:focus {
+      border-color: #4a6b1c;
+      box-shadow: 0 0 5px rgba(107, 142, 35, 0.3);
+    }
+
+    /* Container for buttons to handle layout */
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    button {
+      flex: 1; /* Buttons take equal width */
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .btn-submit {
+      background-color: #6b8e23;
+      color: white;
+    }
+
+    .btn-submit:hover {
+      background-color: #4a6b1c;
+    }
+
+    .btn-cancel {
+      background-color: #e0e0e0;
+      color: #555;
+      text-decoration: none; /* If using <a> tag, though button is fine */
+    }
+
+    .btn-cancel:hover {
+      background-color: #d6d6d6;
+    }
+
+    .flash {
+      background-color: #ffebee;
+      color: #b71c1c;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border: 1px solid #ffcdd2;
+    }
+
+    /* Mobile Tweaks */
+    @media (max-width: 480px) {
+      .form-box {
+        padding: 30px 20px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .button-group {
+        flex-direction: column; /* Stack buttons vertically on small phones */
+        gap: 10px;
+      }
+      
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="form-box">
+    <h1>Register New Admin</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('register') }}">
+      <input type="text" name="username" placeholder="Username" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <input type="password" name="confirm" placeholder="Confirm Password" required />
+      
+      <div class="button-group">
+        <button type="submit" class="btn-submit">Register</button>
+        <button type="button" class="btn-cancel" onclick="window.location.href='/admin_dashboard'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

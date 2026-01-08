@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <title>AI Pest Detection (Pest Registration)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Global Reset */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #b6e8b0;
+      font-family: "Poppins", sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #a8e6a2;
+      padding: 15px 20px; /* Adjusted padding */
+      border-bottom: 2px solid #7bb661;
+    }
+
+    header h1 {
+      color: #1b5e20;
+      font-size: 24px; /* Slightly smaller for better fit */
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+    }
+
+    nav a {
+      text-decoration: none;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      color: white;
+      white-space: nowrap; /* Prevents text wrap on small button */
+    }
+
+    .cancel-btn-nav {
+      background-color: #557b6d;
+    }
+
+    nav a:hover {
+      opacity: 0.85;
+    }
+
+    .main {
+      background-color: #e0f6cd;
+      border-radius: 15px;
+      width: 95%; /* Wider on mobile */
+      max-width: 1200px; /* Max width for desktop */
+      margin: 20px auto;
+      padding: 30px;
+      /* Default to Column (Mobile First) */
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    /* --- Left Side (Upload) --- */
+    .upload-section {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .upload-box {
+      position: relative;
+      background-color: #eaffea;
+      border: 2px solid #557b6d;
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      height: 300px; /* Reduced height slightly for mobile utility */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #1b5e20;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+
+    #error-message {
+      position: absolute;
+      top: -50px; /* Adjusted position */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%; /* Prevent overflow */
+      background-color: rgba(255, 255, 255, 0.95);
+      color: red;
+      font-weight: bold;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .upload-btn {
+      width: 100%;
+      background-color: #557b6d;
+      color: white;
+      border: none;
+      padding: 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .upload-btn:hover {
+      background-color: #355f4e;
+    }
+
+    .classification {
+      background-color: #eaffea;
+      border: 2px solid #9ccc65;
+      border-radius: 12px;
+      padding: 20px;
+      font-weight: 600;
+      color: #1b5e20;
+      text-align: center;
+    }
+
+    .classification textarea {
+      width: 100%;
+      height: 120px;
+      resize: none;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      padding: 8px;
+      outline: none;
+    }
+
+    /* --- Right Side (Form) --- */
+    .form-area {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-fields input {
+      width: 100%;
+      text-align: center;
+      font-weight: bold;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 18px;
+      border: 2px solid #9ccc65;
+      background-color: #eaffea;
+      margin-bottom: 20px;
+    }
+
+    .input-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .input-fields input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #9ccc65;
+      text-align: center;
+      border-radius: 13px;
+      font-size: 15px;
+      background-color: #eaffea;
+      outline: none;
+    }
+
+    h2 {
+      text-align: center;
+      color: #1b5e20;
+      font-size: 22px;
+      margin-bottom: 15px;
+      margin-top: 10px;
+    }
+
+    /* Responsive Grid for Treatments */
+    .treatments {
+      display: grid;
+      grid-template-columns: 1fr; /* 1 column on mobile */
+      gap: 15px;
+    }
+
+    .treatments div {
+      background-color: #eaffea;
+      border: 2px solid #9ccc65;
+      border-radius: 10px;
+      text-align: center;
+      padding: 15px;
+      color: #1b5e20;
+      font-weight: 600;
+    }
+
+    .treatments textarea {
+      width: 100%;
+      height: 80px;
+      resize: none;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background-color: #fff;
+      padding: 8px;
+      outline: none;
+      margin-top: 5px;
+    }
+
+    /* Buttons */
+    .bottom-buttons {
+      /* Removed absolute positioning for flow */
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+      justify-content: flex-end;
+    }
+
+    .apply-btn,
+    .clear-btn {
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 1; /* Grow on mobile */
+    }
+
+    .apply-btn {
+      background-color: #6e9f3f;
+    }
+    .apply-btn:hover {
+      background-color: #588a31;
+    }
+
+    .clear-btn {
+      background-color: #557b6d;
+    }
+    .clear-btn:hover {
+      background-color: #355f4e;
+    }
+
+    .error-border {
+      border: 2px solid red !important;
+    }
+    .upload-error {
+      box-shadow: 0 0 0 2px red inset !important;
+    }
+
+    /* --- MEDIA QUERIES --- */
+
+    /* Tablet (min-width: 768px) */
+    @media (min-width: 768px) {
+      .treatments {
+        grid-template-columns: 1fr 1fr; /* 2 columns */
+      }
+      
+      .bottom-buttons .apply-btn, 
+      .bottom-buttons .clear-btn {
+        flex: 0 1 auto; /* Don't stretch full width */
+        width: 150px;
+      }
+    }
+
+    /* Desktop (min-width: 992px) */
+    @media (min-width: 992px) {
+      .main {
+        display: grid;
+        grid-template-columns: 1.2fr 2.8fr; /* Restore original layout */
+        gap: 40px;
+        padding: 40px 50px;
+      }
+
+      .upload-box {
+        height: 420px; /* Restore tall height */
+      }
+
+      .treatments {
+        grid-template-columns: repeat(3, 1fr); /* 3 columns */
+      }
+      
+      .input-fields input {
+         width: 80%; /* Bring back partial width for aesthetics on wide screens */
+         align-self: center;
+      }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+    }
+    .shake { animation: shake 0.5s; }
+
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>🌿 <span style="font-size: 0.8em; margin-left: 5px;">Pest Reg.</span></h1>
+    <nav>
+      <a href="/admin_dashboard" class="cancel-btn-nav">Cancel</a>
+    </nav>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="mt-3 container">
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <form method="POST" enctype="multipart/form-data">
+    <div class="main">
+
+      <div class="upload-section">
+        <div class="upload-box" id="uploadBox">
+          <div id="error-message"></div>
+          Upload Image<br />
+        </div>
+
+        <input type="file" id="fileInput" name="image" accept="image/*" style="display:none" required>
+        <button type="button" class="upload-btn" id="uploadBtn">Choose Image</button>
+
+        <div class="classification">
+          <label for="classification" style="margin-bottom: 8px; display:block;">Classification of Pest</label>
+          <textarea name="classification" id="classification" required></textarea>
+        </div>
+      </div>
+
+      <div class="form-area">
+        <div class="top-fields">
+          <input type="text" id="cropType" name="crop_type" placeholder="Crop Type" required>
+        </div>
+
+        <div class="input-fields">
+          <input type="text" name="common_name" placeholder="Common Name" required>
+          <input type="text" name="scientific_name" placeholder="Scientific Name" required>
+          <input type="text" name="order_name" placeholder="Order" required>
+          <input type="text" name="family" placeholder="Family" required>
+        </div>
+
+        <h2>TREATMENT RECOMMENDATIONS</h2>
+        <div class="treatments">
+          <div>
+            <label>Cultural Methods</label>
+            <textarea name="cultural_methods" required></textarea>
+          </div>
+          <div>
+            <label>Biological Control</label>
+            <textarea name="biological_control" required></textarea>
+          </div>
+          <div>
+            <label>Sanitation</label>
+            <textarea name="sanitation" required></textarea>
+          </div>
+          <div>
+            <label>Mechanical Control</label>
+            <textarea name="mechanical_control" required></textarea>
+          </div>
+          <div>
+            <label>Chemical Control</label>
+            <textarea name="chemical_control" required></textarea>
+          </div>
+        </div>
+
+        <div class="bottom-buttons">
+          <button class="apply-btn" type="submit">Submit</button>
+          <button class="clear-btn" type="reset">Clear All</button>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+  <script>
+    const uploadBtn = document.getElementById("uploadBtn");
+    const uploadBox = document.getElementById("uploadBox");
+    const fileInput = document.getElementById("fileInput");
+    const errorDiv = document.getElementById("error-message");
+
+    uploadBtn.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length > 0) {
+        uploadBox.textContent = `${fileInput.files.length} image selected.`;
+        uploadBox.classList.remove("upload-error");
+      } else {
+        uploadBox.textContent = "No file selected.";
+      }
+    });
+
+    document.querySelector("form").addEventListener("submit", (e) => {
+      if (!fileInput.files.length) {
+        e.preventDefault();
+        showError("Please upload an image before submitting.");
+        uploadBox.classList.add("upload-error");
+      }
+    });
+
+    function showError(message) {
+      errorDiv.textContent = message;
+      errorDiv.style.display = "block";
+      errorDiv.classList.add("shake");
+      setTimeout(() => {
+        errorDiv.style.display = "none";
+        errorDiv.classList.remove("shake");
+      }, 1500);
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

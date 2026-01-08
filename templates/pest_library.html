@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Pest Library</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Global Box Sizing */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f0f7ee;
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding-bottom: 30px;
+        }
+
+        /* --- Header Styling --- */
+        .library-header {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            color: #2f5d2f;
+            position: relative;
+        }
+
+        .library-header h1 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 50%;
+            left: 2rem;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        /* --- Search Bar --- */
+        .search-bar {
+            max-width: 600px;
+            width: 90%;
+            margin: 2rem auto;
+            position: relative;
+        }
+
+        .search-bar input {
+            height: 55px;
+            border-radius: 15px;
+            border: 2px solid #a8d6a8;
+            padding-left: 50px;
+            width: 100%;
+            font-size: 16px; /* Prevents auto-zoom on iPhone */
+        }
+
+        .search-bar input:focus {
+            border-color: #769f53;
+            box-shadow: 0 0 0 0.25rem rgba(118, 159, 83, 0.25);
+        }
+
+        .search-bar .fa-search {
+            position: absolute;
+            top: 18px;
+            left: 20px;
+            color: #769f53;
+            pointer-events: none;
+        }
+
+        /* --- Grid Layout --- */
+        .pest-grid {
+            display: grid;
+            /* Changed from 180px to 150px to allow 2 columns on small phones */
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            padding: 0 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .pest-card {
+            background-color: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            padding: 15px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 2px solid transparent;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .pest-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            border-color: #769f53;
+        }
+
+        .pest-card img {
+            width: 100%;
+            height: 130px; /* Fixed height for consistency */
+            object-fit: cover;
+            border-radius: 15px;
+            margin-bottom: 12px;
+        }
+
+        .pest-card .pest-name {
+            font-weight: 600;
+            color: #2f5d2f;
+            font-size: 1.1rem;
+            line-height: 1.3;
+        }
+
+        /* --- Modal Styling --- */
+        .modal-content {
+            border-radius: 25px;
+            border: none;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background-color: #f0f7ee;
+            border-bottom: 2px solid #e0e0e0;
+            padding: 1.5rem;
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        #modalPestName {
+            color: #2f5d2f;
+            font-weight: 700;
+        }
+
+        #modalPestImage {
+            width: 100%;
+            max-height: 300px;
+            object-fit: cover;
+            border-radius: 15px;
+            border: 2px solid #a8d6a8;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 768px) {
+            .library-header {
+                padding: 1.5rem 1rem;
+                border-radius: 0 0 20px 20px;
+            }
+
+            /* On mobile, un-float the back button so it doesn't overlap text */
+            .back-button {
+                position: relative;
+                top: auto;
+                left: auto;
+                transform: none;
+                display: inline-block;
+                margin-bottom: 15px;
+                width: auto;
+            }
+            
+            .library-header h1 {
+                font-size: 28px;
+            }
+
+            .search-bar {
+                margin: 1.5rem auto;
+            }
+
+            .modal-body {
+                padding: 1.5rem;
+            }
+            
+            /* Stack modal image nicely */
+            .col-md-5 {
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .pest-grid {
+                gap: 15px;
+                padding: 0 15px;
+            }
+            
+            .pest-card {
+                padding: 10px;
+            }
+
+            .pest-card img {
+                height: 110px; /* Smaller image height for small screens */
+            }
+            
+            .pest-card .pest-name {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="library-header">
+        <a href="{{ url_for('user_page') }}" class="btn btn-outline-secondary back-button">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+        <h1>Pest Library</h1>
+        <p class="lead" style="font-size: 1rem; margin-top: 5px;">Search and learn about common agricultural pests.</p>
+    </div>
+
+    <div class="container-fluid">
+        <div class="search-bar">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" class="form-control" placeholder="Search for a pest by name...">
+        </div>
+
+        <div class="pest-grid" id="pestGrid">
+            {% for pest in pests %}
+            <div class="pest-card" data-bs-toggle="modal" data-bs-target="#pestModal" 
+                data-name="{{ pest.common_name }}"
+                data-scientific="{{ pest.scientific_name }}" 
+                data-order="{{ pest.order_name }}"
+                data-family="{{ pest.family }}" 
+                data-classification="{{ pest.classification }}"
+                data-cultural="{{ pest.cultural_methods }}" 
+                data-biological="{{ pest.biological_control }}"
+                data-sanitation="{{ pest.sanitation }}" 
+                data-mechanical="{{ pest.mechanical_control }}"
+                data-chemical="{{ pest.chemical_control }}"
+                data-image="/static/{{ (pest.image) if pest.image else 'https://via.placeholder.com/150' }}">
+
+                <img src="/static/{{(pest.image) if pest.image else 'https://via.placeholder.com/150' }}"
+                    alt="Image of {{ pest.common_name }}">
+                <div class="pest-name">{{ pest.common_name }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="noResults" class="text-center mt-4" style="display: none;">
+             <p class="text-muted">No pests found matching that name.</p>
+        </div>
+
+        {% if not pests and not error %}
+        <p class="text-center mt-4">No pests found in the library.</p>
+        {% elif error %}
+        <p class="text-center text-danger mt-4">{{ error }}</p>
+        {% endif %}
+    </div>
+
+    <div class="modal fade" id="pestModal" tabindex="-1" aria-labelledby="pestModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalPestName">Pest Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-5 text-center">
+                            <img id="modalPestImage" src="" alt="Pest Image" class="mb-3">
+                            <div class="text-start" style="background: #f9fff9; padding: 15px; border-radius: 10px;">
+                                <p class="mb-1"><strong>Scientific Name:</strong> <br><span id="modalScientificName" class="text-muted"></span></p>
+                                <p class="mb-1"><strong>Order:</strong> <br><span id="modalOrder" class="text-muted"></span></p>
+                                <p class="mb-0"><strong>Family:</strong> <br><span id="modalFamily" class="text-muted"></span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-7">
+                            <h6 style="color:#2f5d2f;"><strong>Classification:</strong></h6>
+                            <p id="modalClassification" class="small text-muted mb-4" style="line-height: 1.6;"></p>
+
+                            <h6 class="border-bottom pb-2 mb-3" style="color:#2f5d2f;"><strong>Treatment Recommendations</strong></h6>
+                            <ul class="list-unstyled small" style="line-height: 1.6;">
+                                <li class="mb-2"><strong>🌱 Cultural:</strong> <span id="modalCultural"></span></li>
+                                <li class="mb-2"><strong>🐞 Biological:</strong> <span id="modalBiological"></span></li>
+                                <li class="mb-2"><strong>🧹 Sanitation:</strong> <span id="modalSanitation"></span></li>
+                                <li class="mb-2"><strong>⚙️ Mechanical:</strong> <span id="modalMechanical"></span></li>
+                                <li class="mb-2"><strong>🧪 Chemical:</strong> <span id="modalChemical"></span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const pestModal = document.getElementById('pestModal');
+            
+            pestModal.addEventListener('show.bs.modal', function (event) {
+                const card = event.relatedTarget;
+                const pestData = card.dataset;
+                
+                // Populate Modal Data
+                pestModal.querySelector('#modalPestName').textContent = pestData.name;
+                pestModal.querySelector('#modalPestImage').src = pestData.image; 
+                pestModal.querySelector('#modalScientificName').textContent = pestData.scientific;
+                pestModal.querySelector('#modalOrder').textContent = pestData.order;
+                pestModal.querySelector('#modalFamily').textContent = pestData.family;
+                pestModal.querySelector('#modalClassification').textContent = pestData.classification;
+                pestModal.querySelector('#modalCultural').textContent = pestData.cultural;
+                pestModal.querySelector('#modalBiological').textContent = pestData.biological;
+                pestModal.querySelector('#modalSanitation').textContent = pestData.sanitation;
+                pestModal.querySelector('#modalMechanical').textContent = pestData.mechanical;
+                pestModal.querySelector('#modalChemical').textContent = pestData.chemical;
+            });
+
+            const searchInput = document.getElementById('searchInput');
+            const pestGrid = document.getElementById('pestGrid');
+            const pestCards = pestGrid.getElementsByClassName('pest-card');
+            const noResultsMsg = document.getElementById('noResults');
+
+            searchInput.addEventListener('keyup', function () {
+                const filter = searchInput.value.toLowerCase();
+                let visibleCount = 0;
+
+                for (let i = 0; i < pestCards.length; i++) {
+                    const card = pestCards[i];
+                    const pestName = card.querySelector('.pest-name').textContent.toLowerCase();
+                    if (pestName.includes(filter)) {
+                        card.style.display = "";
+                        visibleCount++;
+                    } else {
+                        card.style.display = "none";
+                    }
+                }
+
+                // Show "No Results" message if everything is hidden
+                if (visibleCount === 0 && pestCards.length > 0) {
+                    noResultsMsg.style.display = "block";
+                } else {
+                    noResultsMsg.style.display = "none";
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
