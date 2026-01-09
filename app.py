@@ -11,21 +11,24 @@ import json
 import google.generativeai as genai 
 from groq import Groq 
 import PIL.Image  # <--- REQUIRED FOR VISION AI
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'secret_key_123'
-
-# Global variable to track confidence scores
-last_confidence = 0.0
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_fallback_key')
 
 # ================== AI CONFIGURATION ==================
 
-# 1. GOOGLE GEMINI CONFIG (Vision Capable)
-GENAI_API_KEY = "" 
+# 1. GOOGLE GEMINI CONFIG
+GENAI_API_KEY = os.getenv('GENAI_API_KEY')
+if not GENAI_API_KEY:
+    print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
 genai.configure(api_key=GENAI_API_KEY)
 
-# 2. GROQ CONFIG (Text Fallback)
-GROQ_API_KEY = "" 
+# 2. GROQ CONFIG
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
 def clean_json_text(text):
     """Helper to strip markdown formatting from AI responses."""
