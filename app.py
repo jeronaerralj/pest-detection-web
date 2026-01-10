@@ -305,7 +305,7 @@ def generate_frames_cam1():
         current_conf = 0.0 
         
         if is_detection_running:
-            results = model(frame, stream=True, conf=0.5, verbose=False) 
+            results = model(frame, stream=True, conf=0.6, verbose=False) 
             for r in results:
                 annotated_frame = r.plot()
                 last_annotated_frame = annotated_frame 
@@ -419,7 +419,7 @@ def api_status():
         return jsonify(response_data)
 
     # === LOGIC: HANDLE "NEGATIVE" (UNKNOWN) ===
-    if pest_name.lower() == "negative":
+    if pest_name.lower() == "unknown":
         if last_confidence <= 0.3:
              response_data['status_text'] = f"Scanning... (Background: {last_confidence:.2f})"
              return jsonify(response_data)
