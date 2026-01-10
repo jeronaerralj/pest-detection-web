@@ -149,7 +149,7 @@ def close_db(error):
         db.close()
 
 # --- MODEL LOADING ---
-model = YOLO('datapest.pt') 
+model = YOLO('rbeetle.pt') 
 
 # ================== DIAGNOSTIC CHECK ==================
 try:
