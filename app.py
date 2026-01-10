@@ -386,7 +386,7 @@ def api_status():
         return jsonify(response_data)
 
     # === LOGIC: HANDLE "NEGATIVE" (UNKNOWN) ===
-    if pest_name.lower() == "negative":
+    if pest_name.lower() == "unknown":
         if last_confidence <= 0.3:
              response_data['status_text'] = f"Scanning... (Background: {last_confidence:.2f})"
              return jsonify(response_data)
