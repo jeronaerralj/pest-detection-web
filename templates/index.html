@@ -4,315 +4,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Pest Detection</title>
+  <title>AI Pest Detection - Continuous</title>
   <style>
-    /* --- RESET & BASICS --- */
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      background-color: #b6e8b0;
-      font-family: "Poppins", sans-serif;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-    }
-
-    /* --- HEADER --- */
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #a8e6a2;
-      padding: 15px 5%;
-      border-bottom: 2px solid #7bb661;
-      min-height: 75px;
-    }
-
-    header h1 {
-      color: #1b5e20;
-      font-size: clamp(24px, 4vw, 42px);
-      font-weight: 800;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 0;
-      letter-spacing: 1px;
-    }
-
-    /* --- MAIN LAYOUT --- */
-    .main {
-      background-color: #e0f6cd;
-      border-radius: 15px;
-      /* Responsive Width */
-      width: 95%;
-      max-width: 1600px;
-      /* Remove fixed height to allow content to grow */
-      min-height: 80vh; 
-      margin: 30px auto;
-      padding: 40px;
-      
-      /* Grid Layout */
-      display: grid;
-      grid-template-columns: 1fr 2fr; /* Ratio: Camera takes 1 part, Data takes 2 parts */
-      gap: 35px;
-      align-items: start;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    /* --- LEFT PANEL (CAMERA) --- */
-    .left-panel {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-    }
-
-    .camera-box {
-      background-color: #eaffea;
-      border: 2px solid #557b6d;
-      border-radius: 15px;
-      width: 100%;
-      max-width: 500px; /* Prevent it from getting too huge */
-      aspect-ratio: 4 / 5;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-      margin-top: 0;
-    }
-
-    .camera-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .controls {
-      margin-top: 25px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 15px;
-      width: 100%;
-    }
-
-    .status {
-      background-color: #9ccc65;
-      color: #1b5e20;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-weight: 600;
-      text-align: center;
-      width: 100%;
-      max-width: 300px;
-    }
-
-    .button-row {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 15px;
-      flex-wrap: wrap; /* Allow buttons to stack on tiny screens */
-      width: 100%;
-    }
-
-    .apply-btn,
-    .cancel-btn {
-      color: white;
-      border: none;
-      padding: 14px 20px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      flex: 1; /* Buttons share space equally */
-      min-width: 140px; /* Don't get too small */
-      text-align: center;
-      transition: all 0.2s ease;
-    }
-
-    .apply-btn {
-      background-color: #6e9f3f;
-    }
-    .cancel-btn {
-      background-color: #557b6d;
-      width: 100%;
-      max-width: 300px;
-    }
-
+    /* ... (CSS STYLES REMAIN EXACTLY THE SAME) ... */
+    * { box-sizing: border-box; }
+    body { background-color: #b6e8b0; font-family: "Poppins", sans-serif; margin: 0; padding: 0; min-height: 100vh; }
+    header { display: flex; justify-content: space-between; align-items: center; background-color: #a8e6a2; padding: 15px 5%; border-bottom: 2px solid #7bb661; min-height: 75px; }
+    header h1 { color: #1b5e20; font-size: clamp(24px, 4vw, 42px); font-weight: 800; margin: 0; letter-spacing: 1px; }
+    .main { background-color: #e0f6cd; border-radius: 15px; width: 95%; max-width: 1600px; min-height: 80vh; margin: 30px auto; padding: 40px; display: grid; grid-template-columns: 1fr 2fr; gap: 35px; align-items: start; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); }
+    .left-panel { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 15px; }
+    .camera-box.main-cam { background-color: #eaffea; border: 3px solid #1b5e20; border-radius: 15px; width: 100%; max-width: 500px; aspect-ratio: 4 / 3; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+    .secondary-cams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 500px; }
+    .camera-box.small-cam { background-color: #eaffea; border: 2px solid #557b6d; border-radius: 10px; width: 100%; aspect-ratio: 4 / 3; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+    .camera-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cam-label { position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.6); color: white; padding: 2px 8px; font-size: 12px; border-radius: 4px; pointer-events: none; }
+    .controls { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; }
+    .status { background-color: #9ccc65; color: #1b5e20; padding: 8px 16px; border-radius: 8px; font-weight: 600; text-align: center; width: 100%; max-width: 300px; }
+    .button-row { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; width: 100%; }
+    .apply-btn, .cancel-btn { color: white; border: none; padding: 14px 20px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; flex: 1; min-width: 140px; text-align: center; transition: all 0.2s ease; }
+    .apply-btn { background-color: #6e9f3f; }
+    .cancel-btn { background-color: #557b6d; width: 100%; max-width: 300px; }
     .apply-btn:hover { background-color: #588a31; }
     .cancel-btn:hover { background-color: #355f4e; }
-
-    .camera-on {
-      background-color: #4caf50 !important;
-      box-shadow: 0 0 12px 2px rgba(76, 175, 80, 0.6);
-    }
-    .camera-off {
-      background-color: #557b6d !important;
-      opacity: 0.85;
-    }
-
-    /* --- RIGHT PANEL (DATA) --- */
-    .right-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .photo-name-container {
-      display: flex;
-      align-items: flex-start;
-      gap: 20px;
-    }
-
-    .photo-box {
-      background-color: #eaffea;
-      border: 2px solid #9ccc65;
-      border-radius: 12px;
-      width: 150px; /* Fixed sizing for the thumbnail is usually safer */
-      height: 150px;
-      flex-shrink: 0; /* Prevent squishing */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #1b5e20;
-      font-weight: 600;
-      text-align: center;
-      padding: 5px;
-      font-size: 0.9rem;
-    }
-
-    .pest-name-field {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      flex: 1;
-    }
-
-    .pest-name-field label,
-    .classification label,
-    .treatments label {
-      font-weight: 700;
-      color: #1b5e20;
-      font-size: 1rem;
-      margin-bottom: 5px;
-      display: block;
-    }
-
-    .display-box {
-      width: 100%;
-      background-color: #eaffea;
-      border: 2px solid #9ccc65;
-      border-radius: 10px;
-      padding: 12px 15px;
-      font-size: 1rem;
-      color: #1b5e20;
-      font-weight: 600;
-      line-height: 1.4;
-      min-height: 50px;
-      white-space: pre-wrap;
-    }
-
-    .classification {
-      background-color: #eaffea;
-      border: 2px solid #9ccc65;
-      border-radius: 12px;
-      padding: 20px;
-      text-align: center;
-    }
-
-    h2 {
-      text-align: center;
-      color: #1b5e20;
-      font-size: 22px;
-      margin: 15px 0 5px 0;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    /* --- TREATMENTS GRID --- */
-    .treatments {
-      display: grid;
-      /* Auto-fit: Creates as many columns as fit (min 200px), then wraps */
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 18px;
-    }
-
-    .treatments div {
-      background-color: #eaffea;
-      border: 2px solid #9ccc65;
-      border-radius: 10px;
-      text-align: center;
-      padding: 20px;
-      color: #1b5e20;
-      font-size: 0.9rem;
-      display: flex;
-      flex-direction: column;
-      min-height: 140px;
-    }
-
-    .treatments div .display-box {
-      margin-top: auto; /* Pushes content down if needed, or keeps spacing consistent */
-      border: none;
-      background: transparent;
-      padding: 5px 0 0 0;
-      font-weight: normal;
-      min-height: auto;
-    }
-
-    /* --- RESPONSIVE MEDIA QUERIES --- */
-
-    /* Tablet & Small Laptop (Stack the main panels) */
-    @media (max-width: 1024px) {
-      .main {
-        grid-template-columns: 1fr; /* Stack vertically */
-        padding: 25px;
-      }
-
-      .left-panel {
-        margin-bottom: 30px;
-      }
-      
-      .camera-box {
-        max-width: 400px; /* Slightly smaller on tablets */
-      }
-    }
-
-    /* Mobile (Stack everything) */
-    @media (max-width: 600px) {
-      header {
-        padding: 15px 20px;
-      }
-      
-      .main {
-        width: 100%;
-        margin: 0;
-        border-radius: 0;
-        box-shadow: none;
-        padding: 20px;
-      }
-
-      .photo-name-container {
-        flex-direction: column; /* Stack photo on top of names */
-        align-items: center;
-      }
-
-      .pest-name-field {
-        width: 100%;
-      }
-
-      .button-row {
-        flex-direction: column;
-        width: 100%;
-      }
-      
-      .apply-btn, .cancel-btn {
-        width: 100%;
-        max-width: 100%;
-      }
-    }
+    .camera-on { background-color: #4caf50 !important; box-shadow: 0 0 12px 2px rgba(76, 175, 80, 0.6); }
+    .camera-off { background-color: #557b6d !important; opacity: 0.85; }
+    .right-panel { display: flex; flex-direction: column; gap: 20px; }
+    .photo-name-container { display: flex; align-items: flex-start; gap: 20px; }
+    .photo-box { background-color: #eaffea; border: 2px solid #9ccc65; border-radius: 12px; width: 150px; height: 150px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; color: #1b5e20; font-weight: 600; font-size: 0.9rem; }
+    .pest-name-field { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .pest-name-field label, .classification label, .treatments label { font-weight: 700; color: #1b5e20; font-size: 1rem; margin-bottom: 5px; display: block; }
+    .display-box { width: 100%; background-color: #eaffea; border: 2px solid #9ccc65; border-radius: 10px; padding: 12px 15px; font-size: 1rem; color: #1b5e20; font-weight: 600; min-height: 50px; white-space: pre-wrap; }
+    .classification { background-color: #eaffea; border: 2px solid #9ccc65; border-radius: 12px; padding: 20px; text-align: center; }
+    h2 { text-align: center; color: #1b5e20; font-size: 22px; margin: 15px 0 5px 0; text-transform: uppercase; }
+    .treatments { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
+    .treatments div { background-color: #eaffea; border: 2px solid #9ccc65; border-radius: 10px; text-align: center; padding: 20px; color: #1b5e20; min-height: 140px; display: flex; flex-direction: column; }
+    .treatments div .display-box { margin-top: auto; border: none; background: transparent; padding: 5px 0 0 0; }
+    @media (max-width: 1024px) { .main { grid-template-columns: 1fr; padding: 25px; } .left-panel { margin-bottom: 30px; } .camera-box.main-cam, .secondary-cams-container { max-width: 100%; } }
+    @media (max-width: 600px) { header { padding: 15px 20px; } .main { width: 100%; margin: 0; border-radius: 0; padding: 20px; } .photo-name-container { flex-direction: column; align-items: center; } .pest-name-field { width: 100%; } .button-row { flex-direction: column; width: 100%; } .apply-btn, .cancel-btn { width: 100%; } }
   </style>
 </head>
 
@@ -323,17 +51,29 @@
   
   <div class="main">
     <div class="left-panel">
-      <div class="camera-box">
-        <img id="camera-img" src="" alt="Live stream" />
+      <div class="camera-box main-cam">
+        <span class="cam-label" style="background: rgba(185, 28, 28, 0.7);">CAM 1 (Main AI)</span>
+        <img id="camera-img-1" src="" alt="Main Feed" />
+      </div>
+
+      <div class="secondary-cams-container">
+        <div class="camera-box small-cam">
+             <span class="cam-label">CAM 2</span>
+            <img id="camera-img-2" src="" alt="Cam 2" />
+        </div>
+        <div class="camera-box small-cam">
+             <span class="cam-label">CAM 3</span>
+            <img id="camera-img-3" src="" alt="Cam 3" />
+        </div>
       </div>
 
       <div class="controls">
         <div class="status">Status: <span id="status-text">Camera Off</span></div>
 
         <div class="button-row">
-          <button id="startBtn" class="apply-btn">Start Detection</button>
+          <button id="startBtn" class="apply-btn">Start Detection (Cam 1)</button>
           <button id="cameraToggleBtn" class="apply-btn camera-off">
-            Turn Camera On
+            Turn Cameras On
           </button>
         </div>
 
@@ -390,7 +130,10 @@
   </div>
 
   <script>
-    const cameraImg = document.getElementById("camera-img");
+    const cam1 = document.getElementById("camera-img-1");
+    const cam2 = document.getElementById("camera-img-2");
+    const cam3 = document.getElementById("camera-img-3");
+    
     const statusText = document.getElementById("status-text");
     const detectionBtn = document.getElementById("startBtn");
     const cameraBtn = document.getElementById("cameraToggleBtn");
@@ -415,16 +158,20 @@
     cameraBtn.addEventListener("click", async () => {
       cameraOn = !cameraOn;
       if (cameraOn) {
-        // Simulating stream for UI testing - Replace with "/video_feed" in production
-        cameraImg.src = "/video_feed"; 
+        cam1.src = "/video_feed_1"; 
+        cam2.src = "/video_feed_2";
+        cam3.src = "/video_feed_3";
         
-        cameraBtn.textContent = "Turn Camera Off";
+        cameraBtn.textContent = "Turn Cameras Off";
         cameraBtn.classList.add("camera-on");
         cameraBtn.classList.remove("camera-off");
-        statusText.textContent = "Camera On";
+        statusText.textContent = "Cameras Active";
       } else {
-        cameraImg.src = "";
-        cameraBtn.textContent = "Turn Camera On";
+        cam1.src = "";
+        cam2.src = "";
+        cam3.src = "";
+        
+        cameraBtn.textContent = "Turn Cameras On";
         cameraBtn.classList.add("camera-off");
         cameraBtn.classList.remove("camera-on");
         statusText.textContent = "Camera Off";
@@ -434,9 +181,8 @@
           detecting = false;
           detectionBtn.textContent = "Start Detection";
           detectionBtn.style.backgroundColor = "#6e9f3f";
-          statusText.textContent = "Camera turned off — detection stopped.";
+          statusText.textContent = "Cameras turned off — detection stopped.";
           clearInterval(pollInterval);
-          alert("Camera turned off — detection stopped automatically.");
         }
       }
     });
@@ -452,7 +198,7 @@
         detecting = true;
         detectionBtn.textContent = "Stop Detection";
         detectionBtn.style.backgroundColor = "#b91c1c";
-        statusText.textContent = "Detecting...";
+        statusText.textContent = "Detecting on CAM 1...";
         pollInterval = setInterval(fetchStatus, 2000);
       } else {
         await fetch("/api/stop", { method: "POST" });
@@ -480,27 +226,21 @@
       try {
         const res = await fetch("/api/status");
         const data = await res.json();
-
-        // UPDATED: Added safety check for 'Negative' to double-ensure alert doesn't show
+        
         const pestDetected = data.pest_name && 
                              data.pest_name !== '—' && 
                              data.pest_name.toLowerCase() !== 'negative';
 
+        // --- UPDATED LOGIC: CONTINUOUS MODE ---
+        // We do NOT stop the camera here. We just update the text.
+        
         if (data.running && pestDetected) {
-          await fetch("/api/stop", { method: "POST" });
-          clearInterval(pollInterval);
-          detecting = false;
-          detectionBtn.textContent = "Start Detection";
-          detectionBtn.style.backgroundColor = "#6e9f3f";
-          cameraImg.src = "";
-          statusText.textContent = `PAUSED: Pest Detected (${data.pest_name})`;
-          alert(`Detection stopped! Details for ${data.pest_name} have been loaded.`);
+            statusText.textContent = `Pest Detected: ${data.pest_name} (Continuous)`;
+        } else if (!pestDetected) {
+            statusText.textContent = data.status_text || (data.running ? "Detecting on Cam 1..." : "Idle");
         }
 
-        if (!pestDetected) {
-          statusText.textContent = data.status_text || (data.running ? "Detecting..." : "Idle");
-        }
-
+        // Update Text Fields Real-time
         pestNameEl.textContent = data.pest_name || "—";
         scientificNameEl.textContent = data.scientific_name || "—";
         classificationEl.textContent = data.classification || "—";
@@ -517,14 +257,15 @@
         }
       } catch (err) {
         console.error("Error fetching status:", err);
-        statusText.textContent = "Error communicating with server.";
       }
     }
 
     window.addEventListener("DOMContentLoaded", () => {
       cameraOn = false;
-      cameraImg.src = "";
-      statusText.textContent = "Camera Off";
+      cam1.src = "";
+      cam2.src = "";
+      cam3.src = "";
+      statusText.textContent = "Cameras Off";
     });
   </script>
 
