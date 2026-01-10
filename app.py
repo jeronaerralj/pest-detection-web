@@ -149,12 +149,8 @@ def close_db(error):
     if db is not None:
         db.close()
 
-<<<<<<< HEAD
 # --- MODEL LOADING ---
 model = YOLO('rbeetle.pt') 
-=======
-model = YOLO('datapest.pt') 
->>>>>>> 477de91b81b2abacb10ba8094e0310da99f43319
 
 def log_detection_event(pest_name, image_path, detection_type):
     conn = get_db()
