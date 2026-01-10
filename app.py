@@ -14,12 +14,16 @@ from google import genai
 from groq import Groq 
 import PIL.Image 
 from dotenv import load_dotenv
+from functools import wraps
+from datetime import timedelta
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_fallback_key')
+# Configure session timeout (seconds) and make sessions permanent so lifetime applies
+app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOUT_SEC', '900')))
 
 # ================== AI CONFIGURATION ==================
 GENAI_API_KEY = os.getenv('GENAI_API_KEY')
@@ -148,6 +152,33 @@ def close_db(error):
     db = g.pop('db', None)
     if db is not None:
         db.close()
+
+
+def login_required(f):
+    """Require an active admin session and enforce session timeout.
+    Returns JSON 403 for API or XHR requests, or redirects to login for browsers."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        is_api = request.path.startswith('/api') or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
+        if 'admin' not in session:
+            if is_api:
+                return jsonify({'success': False, 'error': 'Authentication required'}), 403
+            flash("Please log in to access that page.", "warning")
+            return redirect(url_for('login'))
+        # Check session timeout
+        last = session.get('last_activity')
+        timeout = int(os.getenv('SESSION_TIMEOUT_SEC', '900'))
+        now = time.time()
+        if last and (now - last) > timeout:
+            session.clear()
+            if is_api:
+                return jsonify({'success': False, 'error': 'Session expired'}), 403
+            flash("Your session has expired. Please log in again.", "warning")
+            return redirect(url_for('login'))
+        # update activity
+        session['last_activity'] = now
+        return f(*args, **kwargs)
+    return decorated
 
 # --- MODEL LOADING ---
 model = YOLO('rbeetle.pt') 
@@ -341,6 +372,7 @@ def video_feed_3() -> Response:
 # ================== API CONTROL ROUTES ==================
 
 @app.route('/api/start', methods=['POST'])
+@login_required
 def api_start():
     global is_detection_running
     global last_logged_pest
@@ -349,6 +381,7 @@ def api_start():
     return jsonify({'status': 'Detection started'})
 
 @app.route('/api/stop', methods=['POST'])
+@login_required
 def api_stop():
     global is_detection_running
     is_detection_running = False
@@ -547,6 +580,8 @@ def login():
         if username == 'Admin' and password == 'admin123':
             session['admin'] = username
             session['role'] = 'main'
+            session.permanent = True
+            session['last_activity'] = time.time()
             return redirect(url_for('admin_dashboard'))
 
         conn = None 
@@ -560,6 +595,8 @@ def login():
             if admin and check_password_hash(admin[1], password):
                 session['admin'] = admin[0]
                 session['role'] = admin[2]
+                session.permanent = True
+                session['last_activity'] = time.time()
                 return redirect(url_for('admin_dashboard'))
             else:
                 return render_template('login.html', error="Invalid username or password.")
@@ -576,6 +613,7 @@ def logout():
     return redirect(url_for('home'))
 
 @app.route('/admin_dashboard')
+@login_required
 def admin_dashboard():
     if 'admin' not in session:
         return redirect(url_for('login'))
@@ -595,6 +633,7 @@ def admin_dashboard():
         if conn: conn.close()
 
 @app.route('/add_pest', methods=['GET', 'POST'])
+@login_required
 def add_pest():
     session.pop('_flashes', None)
     if 'admin' not in session:
@@ -645,6 +684,7 @@ def add_pest():
     return render_template('add_pest.html')
 
 @app.route('/delete_pest/<int:pest_id>', methods=['POST'])
+@login_required
 def delete_pest(pest_id):
     try:
         conn = get_db()
@@ -656,6 +696,7 @@ def delete_pest(pest_id):
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/upload_pest_image', methods=['POST'])
+@login_required
 def upload_pest_image():
     if 'admin' not in session:
         return jsonify({'success': False, 'error': 'Authentication required'}), 403
@@ -688,6 +729,7 @@ def upload_pest_image():
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/update_pests', methods=['POST'])
+@login_required
 def update_pests():
     if not request.is_json:
         return jsonify({'success': False, 'error': 'Invalid request format.'}), 400
@@ -740,6 +782,7 @@ def update_pests():
         return jsonify({'success': False, 'error': 'A critical server error occurred.'}), 500
     
 @app.route('/register', methods=['GET', 'POST'])
+@login_required
 def register():
     if 'admin' not in session:
         return redirect(url_for('login'))
