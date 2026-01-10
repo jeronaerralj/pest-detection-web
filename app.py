@@ -181,7 +181,7 @@ def login_required(f):
     return decorated
 
 # --- MODEL LOADING ---
-model = YOLO('rbeetle.pt') 
+model = YOLO('Rhino.pt') 
 
 def log_detection_event(pest_name, image_path, detection_type):
     conn = get_db()
