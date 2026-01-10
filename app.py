@@ -305,7 +305,7 @@ def generate_frames_cam1():
         current_conf = 0.0 
         
         if is_detection_running:
-            results = model(frame, stream=True, conf=0.6, verbose=False) 
+            results = model(frame, stream=True, conf=0.5, verbose=False) 
             for r in results:
                 annotated_frame = r.plot()
                 last_annotated_frame = annotated_frame 
