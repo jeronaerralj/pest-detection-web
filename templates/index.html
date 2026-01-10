@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Pest Detection - Continuous</title>
   <style>
-    /* ... (CSS STYLES REMAIN EXACTLY THE SAME) ... */
+    /* ... (CSS STYLES) ... */
     * { box-sizing: border-box; }
     body { background-color: #b6e8b0; font-family: "Poppins", sans-serif; margin: 0; padding: 0; min-height: 100vh; }
     header { display: flex; justify-content: space-between; align-items: center; background-color: #a8e6a2; padding: 15px 5%; border-bottom: 2px solid #7bb661; min-height: 75px; }
@@ -158,9 +158,11 @@
     cameraBtn.addEventListener("click", async () => {
       cameraOn = !cameraOn;
       if (cameraOn) {
-        cam1.src = "/video_feed_1"; 
-        cam2.src = "/video_feed_2";
-        cam3.src = "/video_feed_3";
+        // FIX: Add timestamp to force browser to reload stream
+        const t = new Date().getTime();
+        cam1.src = "/video_feed_1?t=" + t; 
+        cam2.src = "/video_feed_2?t=" + t;
+        cam3.src = "/video_feed_3?t=" + t;
         
         cameraBtn.textContent = "Turn Cameras Off";
         cameraBtn.classList.add("camera-on");
@@ -227,20 +229,42 @@
         const res = await fetch("/api/status");
         const data = await res.json();
         
+        // === SYNC BUTTON STATE ===
+        // If server says detection stopped (data.running is false), 
+        // but browser button still says "Stop Detection" (detecting is true), reset it.
+        if (!data.running && detecting) {
+             console.log("Syncing state: Server stopped, updating UI.");
+             detecting = false;
+             
+             // Reset Button to Green "Start Detection"
+             detectionBtn.textContent = "Start Detection";
+             detectionBtn.style.backgroundColor = "#6e9f3f";
+             
+             // Update Status Text
+             statusText.textContent = "Stopped";
+             
+             // Stop polling
+             clearInterval(pollInterval);
+             return; 
+        }
+
         const pestDetected = data.pest_name && 
                              data.pest_name !== '—' && 
                              data.pest_name.toLowerCase() !== 'negative';
 
-        // --- UPDATED LOGIC: CONTINUOUS MODE ---
-        // We do NOT stop the camera here. We just update the text.
-        
+        // Update Text Status
         if (data.running && pestDetected) {
             statusText.textContent = `Pest Detected: ${data.pest_name} (Continuous)`;
         } else if (!pestDetected) {
-            statusText.textContent = data.status_text || (data.running ? "Detecting on Cam 1..." : "Idle");
+            // Only update text if we are actually running
+            if (data.running) {
+                statusText.textContent = data.status_text || "Detecting on Cam 1...";
+            } else {
+                statusText.textContent = "Stopped";
+            }
         }
 
-        // Update Text Fields Real-time
+        // Update Fields
         pestNameEl.textContent = data.pest_name || "—";
         scientificNameEl.textContent = data.scientific_name || "—";
         classificationEl.textContent = data.classification || "—";
