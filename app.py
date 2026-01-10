@@ -368,7 +368,7 @@ patch_database_schema()
 
 # --- MODEL ---
 try:
-    model = YOLO('datapest.pt') 
+    model = YOLO('threeinsects.pt') 
 except:
     print("⚠️ WARNING: datapest.pt not found. Detection will fail.")
     model = None
