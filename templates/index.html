@@ -153,12 +153,9 @@
     let detecting = false;
     let pollInterval = null;
 
-    // --- Camera and Detection Handlers ---
-
     cameraBtn.addEventListener("click", async () => {
       cameraOn = !cameraOn;
       if (cameraOn) {
-        // FIX: Add timestamp to force browser to reload stream
         const t = new Date().getTime();
         cam1.src = "/video_feed_1?t=" + t; 
         cam2.src = "/video_feed_2?t=" + t;
@@ -169,9 +166,7 @@
         cameraBtn.classList.remove("camera-off");
         statusText.textContent = "Cameras Active";
       } else {
-        cam1.src = "";
-        cam2.src = "";
-        cam3.src = "";
+        cam1.src = ""; cam2.src = ""; cam3.src = "";
         
         cameraBtn.textContent = "Turn Cameras On";
         cameraBtn.classList.add("camera-off");
@@ -201,7 +196,7 @@
         detectionBtn.textContent = "Stop Detection";
         detectionBtn.style.backgroundColor = "#b91c1c";
         statusText.textContent = "Detecting on CAM 1...";
-        pollInterval = setInterval(fetchStatus, 2000);
+        pollInterval = setInterval(fetchStatus, 1500); // Polling every 1.5s
       } else {
         await fetch("/api/stop", { method: "POST" });
         detecting = false;
@@ -229,42 +224,38 @@
         const res = await fetch("/api/status");
         const data = await res.json();
         
-        // === SYNC BUTTON STATE ===
-        // If server says detection stopped (data.running is false), 
-        // but browser button still says "Stop Detection" (detecting is true), reset it.
         if (!data.running && detecting) {
-             console.log("Syncing state: Server stopped, updating UI.");
              detecting = false;
-             
-             // Reset Button to Green "Start Detection"
              detectionBtn.textContent = "Start Detection";
              detectionBtn.style.backgroundColor = "#6e9f3f";
-             
-             // Update Status Text
              statusText.textContent = "Stopped";
-             
-             // Stop polling
              clearInterval(pollInterval);
              return; 
         }
 
-        const pestDetected = data.pest_name && 
-                             data.pest_name !== '—' && 
-                             data.pest_name.toLowerCase() !== 'negative';
-
-        // Update Text Status
-        if (data.running && pestDetected) {
-            statusText.textContent = `Pest Detected: ${data.pest_name} (Continuous)`;
-        } else if (!pestDetected) {
-            // Only update text if we are actually running
-            if (data.running) {
-                statusText.textContent = data.status_text || "Detecting on Cam 1...";
-            } else {
-                statusText.textContent = "Stopped";
-            }
+        // Handle "Identifying..." status specifically
+        if (data.pest_name === "Identifying...") {
+             statusText.textContent = data.status_text;
+             statusText.style.backgroundColor = "#fef08a"; // Yellow warning color
+             statusText.style.color = "#854d0e";
+             pestNameEl.textContent = "Analyzing...";
+             return; // Skip updating other fields while thinking
         }
 
-        // Update Fields
+        // Standard Status Update
+        statusText.style.backgroundColor = "#9ccc65"; // Default Green
+        statusText.style.color = "#1b5e20";
+
+        const pestDetected = data.pest_name && data.pest_name !== '—' && 
+                             data.pest_name.toLowerCase() !== 'unknown' &&
+                             data.pest_name.toLowerCase() !== 'negative';
+
+        if (data.running && pestDetected) {
+            statusText.textContent = `Pest Detected: ${data.pest_name}`;
+        } else if (data.running) {
+             statusText.textContent = data.status_text;
+        }
+
         pestNameEl.textContent = data.pest_name || "—";
         scientificNameEl.textContent = data.scientific_name || "—";
         classificationEl.textContent = data.classification || "—";
@@ -286,9 +277,7 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       cameraOn = false;
-      cam1.src = "";
-      cam2.src = "";
-      cam3.src = "";
+      cam1.src = ""; cam2.src = ""; cam3.src = "";
       statusText.textContent = "Cameras Off";
     });
   </script>
