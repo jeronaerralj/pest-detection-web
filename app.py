@@ -2,12 +2,16 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify, Response
 import sqlite3, os, cv2, threading, atexit, re, datetime, time, json
 import numpy as np 
-import base64  # <--- ADD THIS NEW IMPORT
+import base64 
 from ultralytics.models.yolo import YOLO 
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 import google.generativeai as genai 
 from groq import Groq 
+# --- NEW IMPORTS ---
+from openai import OpenAI  # For GitHub Models
+import ollama              # For Local Llama
+# -------------------
 import PIL.Image 
 from dotenv import load_dotenv
 from functools import wraps
@@ -22,6 +26,9 @@ app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOU
 
 # ================== AI CONFIGURATION ==================
 GENAI_API_KEY = os.getenv('GENAI_API_KEY')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY') 
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN') # <--- NEW TOKEN
+
 if not GENAI_API_KEY:
     print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
 else:
@@ -30,6 +37,12 @@ else:
         print("✅ Gemini AI Configured Successfully")
     except Exception as e:
         print(f"Error configuring Gemini: {e}")
+
+if not GROQ_API_KEY:
+    print("⚠️ WARNING: GROQ_API_KEY not found (Text fallback disabled)")
+
+if not GITHUB_TOKEN:
+    print("⚠️ WARNING: GITHUB_TOKEN not found (GitHub Vision fallback disabled)")
 
 # ================== GLOBAL STATE & LOCKS ==================
 frame_lock = threading.Lock()
@@ -44,7 +57,8 @@ last_logged_pest = None
 # AI Threading State
 is_ai_processing = False
 ai_cooldown_timer = 0
-AI_COOLDOWN_SECONDS = 15  # Time to wait before retrying AI on "Unknown"
+# --- FIX: INCREASED COOLDOWN ---
+AI_COOLDOWN_SECONDS = 60  # Increased from 15 to 60 to prevent Gemini Quota errors
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_DIR = os.path.join(BASE_DIR, 'database')
@@ -63,11 +77,8 @@ os.makedirs(HISTORY_FOLDER, exist_ok=True)
 def clean_json_text(text):
     """Aggressively cleans JSON text returned by LLMs."""
     try:
-        # Remove markdown code blocks
         text = re.sub(r'```json\s*', '', text, flags=re.IGNORECASE)
         text = re.sub(r'```', '', text)
-        
-        # Find the first { and last } to isolate the JSON object
         start = text.find('{')
         end = text.rfind('}') + 1
         if start != -1 and end != -1:
@@ -130,28 +141,16 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         "chemical_control": "1-2 sentence advice"
     }
 
-    # 1. PRIORITY LIST: Try these Gemini models first
-    # We moved 2.5-flash to the top as it likely has fresh quota compared to 2.0
-    gemini_candidates = [
-        'gemini-2.5-flash',
-        'gemini-exp-1206',
-        'gemini-2.0-flash-exp',
-        'gemini-flash-latest'
-    ]
-
     # --- SCENARIO A: VISION IDENTIFICATION ---
     if (pest_name.lower() in ["unknown", "negative"]) and image_path:
         print(f"👁️ AI Vision: Analyzing image...")
         
-        # A. Try Gemini Vision Models
+        # 1. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
+            gemini_candidates = ['gemini-2.5-flash', 'gemini-exp-1206', 'gemini-flash-latest']
             try:
                 img = PIL.Image.open(image_path)
-                vision_prompt = f"""
-                Analyze this image of a Pineapple crop. Identify the specific pest, insect, or disease present.
-                Return a raw JSON object (no markdown) with this structure: {json.dumps(json_structure)}.
-                If no pest is visible or you are uncertain, return "common_name": "N/A".
-                """
+                vision_prompt = f"Analyze this image. Identify the specific pest. Return JSON: {json.dumps(json_structure)}. If uncertain, return common_name: N/A."
 
                 for model_name in gemini_candidates:
                     try:
@@ -161,84 +160,86 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                         return json.loads(clean_json_text(response.text))
                     except Exception as e:
                         if "429" in str(e) or "quota" in str(e).lower():
-                            print(f"   ⚠️ Quota Hit on {model_name}. Trying next...")
-                            continue # Skip to next Gemini model
-                        elif "404" in str(e):
-                            continue # Skip if model not found
+                            print(f"   ⚠️ Quota Hit on {model_name}.")
+                            continue 
                         else:
                             print(f"   ❌ Error with {model_name}: {e}")
-                            break 
-            except Exception as e_gemini:
-                print(f"❌ Gemini Vision Critical Fail: {e_gemini}")
+            except Exception as e:
+                print(f"❌ Gemini Vision Critical Fail: {e}")
 
-        # B. Fallback to Groq Vision (Llama 3.2)
-        # This runs if Gemini failed or ran out of quota
-        if GROQ_API_KEY:
-            print("   👉 Switching to Groq Vision (Llama 3.2)...")
+        # 2. Try GitHub Models (Option 1 - Cloud Backup)
+        if GITHUB_TOKEN:
+            print("   👉 Switching to GitHub Models (Llama 3.2 Vision)...")
             try:
-                # Encode image to base64 for Groq
                 with open(image_path, "rb") as image_file:
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
-                client = Groq(api_key=GROQ_API_KEY)
-                chat_completion = client.chat.completions.create(
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": f"Analyze this image of a pineapple pest. Return strictly valid JSON: {json.dumps(json_structure)}"},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_image}",
-                                    },
-                                },
-                            ],
-                        }
-                    ],
-                    model="llama-3.2-11b-vision-preview", # Free tier vision model
-                    temperature=0,
-                    response_format={"type": "json_object"}
+                client = OpenAI(
+                    base_url="https://models.inference.ai.azure.com",
+                    api_key=GITHUB_TOKEN
                 )
-                return json.loads(chat_completion.choices[0].message.content)
-            except Exception as e_groq:
-                print(f"❌ Groq Vision also failed: {e_groq}")
+
+                response = client.chat.completions.create(
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": f"Identify pest. Return JSON: {json.dumps(json_structure)}"},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+                        ],
+                    }],
+                    model="Llama-3.2-90B-Vision-Instruct",
+                    temperature=0,
+                )
+                return json.loads(clean_json_text(response.choices[0].message.content))
+            except Exception as e:
+                print(f"❌ GitHub Models failed: {e}")
+
+        # 3. Try Ollama (Option 3 - Local Backup)
+        print("   👉 Switching to Local Ollama...")
+        try:
+            response = ollama.chat(
+                model='llama3.2-vision',
+                messages=[{
+                    'role': 'user',
+                    'content': f"Identify pest. Return JSON: {json.dumps(json_structure)}",
+                    'images': [image_path]
+                }]
+            )
+            return json.loads(clean_json_text(response['message']['content']))
+        except Exception as e:
+            print(f"❌ Ollama failed (Is it running?): {e}")
 
         print("❌ All AI Vision models failed.")
         return None
 
     # --- SCENARIO B: TEXT LOOKUP ---
-    system_prompt = f"""
-    You are an expert in Pineapple agronomy. Provide details for the pest: '{pest_name}'.
-    Return details in strict JSON format matching: {json.dumps(json_structure)}.
-    """
+    system_prompt = f"Expert Pineapple agronomy. Details for '{pest_name}'. JSON format: {json.dumps(json_structure)}."
 
     # 1. Try Gemini Text
     if GENAI_API_KEY:
-        for model_name in gemini_candidates:
-            try:
-                model = genai.GenerativeModel(model_name)
-                response = model.generate_content(system_prompt)
-                return json.loads(clean_json_text(response.text))
-            except Exception:
-                continue
+        try:
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content(system_prompt)
+            return json.loads(clean_json_text(response.text))
+        except: pass
 
-    # 2. Try Groq Text (Fallback)
-    try:
-        client = Groq(api_key=GROQ_API_KEY)
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a helpful agricultural AI. Output JSON only."},
-                {"role": "user", "content": system_prompt}
-            ],
-            model="llama-3.3-70b-versatile", 
-            temperature=0,
-            response_format={"type": "json_object"} 
-        )
-        return json.loads(chat_completion.choices[0].message.content)
-    except Exception as e_groq:
-        print(f"❌ Groq Text also failed: {e_groq}")
-        return None
+    # 2. Try Groq Text (Legacy/Fallback)
+    if GROQ_API_KEY:
+        try:
+            client = Groq(api_key=GROQ_API_KEY)
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "Output JSON only."},
+                    {"role": "user", "content": system_prompt}
+                ],
+                model="llama-3.3-70b-versatile",
+                temperature=0,
+                response_format={"type": "json_object"} 
+            )
+            return json.loads(chat_completion.choices[0].message.content)
+        except Exception: pass
+        
+    return None
 
 def process_unknown_pest_background(image_path):
     """Background thread function to handle AI analysis."""
@@ -263,9 +264,6 @@ def process_unknown_pest_background(image_path):
                 if not c.fetchone():
                     # Use the filename from the temp path
                     filename = os.path.basename(image_path)
-                    # Move temp file to uploads permanent storage logic is implied by folder sharing, 
-                    # but strictly we just point to it. Ideally, copy it.
-                    # Here we just use the path relative to static.
                     db_image_path = f"uploads/{filename}"
                     
                     c.execute('''INSERT INTO pests (
@@ -366,12 +364,25 @@ def patch_database_schema():
 
 patch_database_schema()
 
-# --- MODEL ---
+# --- MODELS ---
+# 1. Custom Pest Model
 try:
-    model = YOLO('threeinsects.pt') 
+    model = YOLO('datapest.pt')
+    print("✅ Custom Pest Model Loaded")
 except:
     print("⚠️ WARNING: datapest.pt not found. Detection will fail.")
     model = None
+
+# 2. General Model (The "Double Agent" for Birds/Animals)
+try:
+    general_model = YOLO('yolov8n.pt')
+    print("✅ General Model Loaded (for Intruder Detection)")
+except Exception as e:
+    print(f"⚠️ General model failed to load: {e}")
+    general_model = None
+
+# COCO Dataset IDs for animals we want to treat as "Unknown/Intruders"
+ANIMAL_CLASSES = [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
 
 # ================== LOGGING & CAMERA ==================
 def log_detection_event(pest_name, image_path, detection_type):
@@ -450,34 +461,53 @@ def generate_frames_cam1():
         
         annotated_frame = frame
         
-        if is_detection_running and model:
-            results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True) 
+        if is_detection_running:
+            # --- STEP 1: Run Custom Model (Priority) ---
+            pest_found = False
+            if model:
+                results = model(frame, stream=True, conf=0.50, verbose=False, agnostic_nms=True)
+                
+                best_conf = 0.0
+                best_pest = None
+
+                for r in results:
+                    if len(r.boxes) > 0:
+                        annotated_frame = r.plot()
+                        pest_found = True
+                        for box in r.boxes:
+                            cls_id = int(box.cls[0].item())
+                            conf = float(box.conf[0].item())
+                            label = r.names[cls_id]
+
+                            if label.lower() in ["negative", "alienated"]:
+                                label = "Unknown"
+
+                            if conf > best_conf:
+                                best_conf = conf
+                                best_pest = label
+                
+                if pest_found and best_pest:
+                    with frame_lock:
+                        last_annotated_frame = annotated_frame
+                    last_detected_pest = best_pest
+                    last_confidence = best_conf
+
+            # --- STEP 2: Run General Model (If no pest found) ---
+            if not pest_found and general_model:
+                gen_results = general_model(frame, classes=ANIMAL_CLASSES, conf=0.40, verbose=False)
+                for gr in gen_results:
+                    if len(gr.boxes) > 0:
+                        annotated_frame = gr.plot()
+                        with frame_lock:
+                            last_annotated_frame = annotated_frame
+                        
+                        last_detected_pest = "Unknown"
+                        detected_animal = gr.names[int(gr.boxes[0].cls[0])]
+                        print(f"⚠️ Intruder Detected: {detected_animal} -> Marking as Unknown")
             
-            best_conf = 0.0
-            best_pest = None
-
-            for r in results:
-                annotated_frame = r.plot()
-                with frame_lock:
-                    last_annotated_frame = annotated_frame 
-
-                for box in r.boxes:
-                    cls_id = int(box.cls[0].item())
-                    conf = float(box.conf[0].item())
-                    label = r.names[cls_id]
-
-                    # Map "Negative" or "Alienated" to "Unknown"
-                    if label.lower() in ["negative", "alienated"]:
-                        label = "Unknown"
-
-                    if conf > best_conf:
-                        best_conf = conf
-                        best_pest = label
-            
-            if best_pest:
-                last_detected_pest = best_pest
-                last_confidence = best_conf
-            
+            if not pest_found and (not general_model or len(gen_results[0].boxes) == 0):
+                 with frame_lock:
+                    last_annotated_frame = frame
         else:
             with frame_lock:
                 last_annotated_frame = frame
