@@ -2,185 +2,232 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Welcome | AI Pest Detection</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        /* Global Reset */
-        * {
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Dashboard | AI Pest Detection</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-        body {
-            font-family: "Poppins", sans-serif;
-            background: linear-gradient(to bottom right, #c1eec0, #b7e4c7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh; /* Allows scrolling if content is too tall */
-            margin: 0;
-            padding: 20px; /* Prevents box from touching screen edges */
-        }
+  <style>
+    :root {
+      --primary: #2e7d32;
+      --primary-hover: #1b5e20;
+      --secondary: #4caf50;
+      --bg-color: #f0f2f5;
+      --card-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-light: #6b7280;
+      --border-radius: 12px;
+      --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
 
-        .welcome-box {
-            background: white;
-            border-radius: 25px;
-            box-shadow: 0 6px 35px rgba(0, 0, 0, 0.2);
-            padding: 50px 40px;
-            text-align: center;
-            width: 100%;
-            max-width: 720px; /* Responsive width */
-            border: 3px solid #6b8e23;
-            animation: fadeIn 1s ease-out;
-        }
+    /* Global Reset */
+    * { box-sizing: border-box; }
 
-        .logo-title {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            opacity: 0;
-            transform: translateY(-30px);
-            animation: slideIn 1s ease-out forwards;
-            animation-delay: 0.2s;
-            flex-wrap: wrap; /* Wraps logo and text on tiny screens */
-        }
+    body {
+      font-family: "Inter", sans-serif;
+      background-color: var(--bg-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
 
-        .logo {
-            font-size: 60px; /* Slightly smaller for better fit */
-            color: #4caf50;
-            line-height: 1;
-        }
+    .dashboard-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 50px 40px;
+      text-align: center;
+      width: 100%;
+      max-width: 700px;
+      border-top: 6px solid var(--primary);
+      animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
 
-        h1 {
-            color: #33691e;
-            font-weight: 800;
-            font-size: 2.5rem;
-            margin: 0;
-            line-height: 1.2;
-        }
+    h1 {
+      font-family: "Poppins", sans-serif;
+      color: var(--text-dark);
+      font-weight: 800;
+      font-size: 2rem;
+      margin: 0 0 10px 0;
+    }
 
-        p {
-            font-size: 1.2rem;
-            color: #2f4f2f;
-            margin: 10px 0 30px 0;
-            opacity: 0;
-            transform: translateY(20px);
-            animation: fadeUp 1s ease forwards;
-            animation-delay: 0.6s;
-        }
+    h1 span {
+      color: var(--primary);
+    }
 
-        /* --- GRID LAYOUT FOR BUTTONS --- */
-        .button-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* 2 Columns by default */
-            gap: 20px;
-            width: 100%;
-        }
+    p {
+      font-size: 1.05rem;
+      color: var(--text-light);
+      margin: 10px 0 35px 0;
+    }
 
-        .btn {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #90b645;
-            color: white;
-            font-size: 1.1rem;
-            font-weight: bold;
-            padding: 20px;
-            border-radius: 15px;
-            text-decoration: none;
-            transition: 0.3s;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-            opacity: 0;
-            transform: translateY(30px);
-            animation: fadeUp 0.8s ease forwards;
-            width: 100%; /* Fills the grid cell */
-        }
+    /* Grid Layout for Action Buttons */
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr); /* 2 columns */
+      gap: 20px;
+      width: 100%;
+    }
 
-        /* Staggered Animation Delays */
-        .btn:nth-child(1) { animation-delay: 0.7s; }
-        .btn:nth-child(2) { animation-delay: 0.8s; }
-        .btn:nth-child(3) { animation-delay: 0.9s; }
-        .btn:nth-child(4) { animation-delay: 1.0s; }
+    .action-btn {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: white;
+      color: var(--text-dark);
+      border: 2px solid #e5e7eb;
+      border-radius: var(--border-radius);
+      padding: 25px 20px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+      gap: 10px;
+    }
 
-        .btn:hover {
-            background-color: #4a6b1c;
-            transform: translateY(-3px); /* Subtle lift effect */
-        }
+    /* Styling the Material Icons specifically */
+    .action-btn .material-icons {
+      font-size: 2rem;
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text-light); /* Default icon color */
+      transition: color 0.2s ease;
+    }
 
-        /* Secondary Button Styling */
-        .btn-secondary {
-            background-color: #e0e0e0;
-            color: #555;
-        }
+    /* Hover Effects */
+    .action-btn:hover {
+      border-color: var(--primary);
+      background-color: #f9fafb;
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      color: var(--primary);
+    }
 
-        .btn-secondary:hover {
-            background-color: #c4c4c4;
-            color: #333;
-        }
+    /* Make icon green on hover for regular buttons */
+    .action-btn:hover .material-icons {
+        color: var(--primary);
+    }
 
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.98); }
-            to { opacity: 1; transform: scale(1); }
-        }
+    /* Primary Action Style (Green Background) */
+    .action-btn.primary {
+      background-color: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
 
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+    /* Ensure icon is white on the primary button */
+    .action-btn.primary .material-icons {
+        color: white;
+    }
 
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+    .action-btn.primary:hover {
+      background-color: var(--primary-hover);
+      color: white;
+    }
 
-        /* --- MOBILE RESPONSIVENESS --- */
-        @media (max-width: 768px) {
-            .welcome-box {
-                padding: 40px 25px;
-            }
+    /* Cancel Button - Full Width */
+    .cancel-container {
+      margin-top: 25px;
+      width: 100%;
+    }
 
-            .logo-title {
-                flex-direction: column;
-                gap: 10px;
-            }
+    .btn-cancel {
+      display: inline-block;
+      color: var(--text-light);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      padding: 10px 20px;
+      border-radius: 8px;
+      transition: color 0.2s;
+    }
 
-            .logo { font-size: 50px; }
-            h1 { font-size: 2rem; text-align: center; }
+    .btn-cancel:hover {
+      background-color: #f3f4f6;
+      color: #374151;
+    }
 
-            /* Switch to 1 column on mobile */
-            .button-grid {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
+    /* Animations */
+    @keyframes fadeInUp {
+      from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0); 
+      }
+    }
 
-            .btn {
-                padding: 15px;
-                font-size: 1rem;
-            }
-        }
-    </style>
+    /* --- Mobile Responsive Styles --- */
+    @media (max-width: 600px) {
+      .dashboard-card {
+        padding: 30px 20px;
+      }
+
+      h1 { font-size: 1.75rem; }
+
+      .action-grid {
+        grid-template-columns: 1fr; /* Stack vertically on mobile */
+        gap: 15px;
+      }
+
+      .action-btn {
+        flex-direction: row; /* Horizontal layout on mobile */
+        justify-content: flex-start;
+        padding: 20px;
+        gap: 15px;
+      }
+
+      .action-btn .material-icons {
+        margin-bottom: 0;
+        font-size: 1.5rem;
+      }
+    }
+  </style>
 </head>
 
 <body>
-    <div class="welcome-box">
-        <div class="logo-title">
-            <div class="logo">🦗</div>
-            <h1>Hello, User!</h1>
-        </div>
-        
-        <p>What would you like to do?</p>
-        
-        <div class="button-grid">
-            <a href="/index" class="btn">Live Pest Detection</a>
-            <a href="/upload" class="btn">Upload Pest Image</a>
-            <a href="/library" class="btn">Pest Library</a>
-            <a href="/" class="btn btn-secondary">Cancel</a>
-        </div>
-    </div>
-</body>
+  
+  <div class="dashboard-card">
+    <h1>Hello, <span>User!</span></h1>
+    <p>Select an option to get started</p>
+    
+    <div class="action-grid">
+      <a href="/index" class="action-btn primary">
+        <span class="material-icons">videocam</span>
+        Live Detection
+      </a>
+      
+      <a href="/upload" class="action-btn">
+        <span class="material-icons">cloud_upload</span>
+        Upload Image
+      </a>
+      
+      <a href="/library" class="action-btn">
+        <span class="material-icons">menu_book</span>
+        Pest Library
+      </a>
 
+      <a href="#" class="action-btn" style="opacity: 0.6; cursor: default;">
+        <span class="material-icons">settings</span>
+        Settings
+      </a>
+    </div>
+
+    <div class="cancel-container">
+      <a href="/" class="btn-cancel">Log Out / Cancel</a>
+    </div>
+  </div>
+
+</body>
 </html>

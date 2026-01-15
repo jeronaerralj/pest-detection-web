@@ -4,314 +4,417 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Pest Detection</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
+  <title>Upload Image | AI Pest Detection</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  
   <style>
-    /* Global Styles */
+    :root {
+      --primary: #2e7d32;
+      --primary-light: #e8f5e9;
+      --bg-color: #f0f2f5;
+      --card-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-light: #6b7280;
+      --border-radius: 12px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
     body {
-      background-color: #bdecb6;
-      font-family: 'Poppins', sans-serif;
+      background-color: var(--bg-color);
+      font-family: "Inter", sans-serif;
       margin: 0;
-      padding: 20px;
-      box-sizing: border-box;
-      /* Prevent horizontal scroll on mobile */
-      overflow-x: hidden; 
+      padding: 0;
+      min-height: 100vh;
+      color: var(--text-dark);
     }
 
-    /* Desktop Layout (Default) 
-      - Side by side
-      - Fixed viewport height
-    */
-    .main-container {
+    /* HEADER */
+    header {
+      background-color: var(--card-bg);
+      padding: 15px 5%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       display: flex;
-      width: 100%;
-      height: calc(100vh - 40px); /* Fill screen minus body padding */
-      gap: 20px;
-    }
-
-    /* Common Card Styles */
-    .upload-column,
-    .result-box {
-      background-color: white;
-      padding: 40px;
-      border-radius: 30px;
-      border: 3px solid #769f53;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Left Column (Upload) */
-    .upload-column {
-      flex: 1;
       justify-content: center;
-      text-align: center;
-      /* On desktop, allow this side to scroll if image is huge, though unlikely */
-      overflow-y: auto; 
-    }
-
-    /* Right Column (Results) */
-    .result-column {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      /* Important for nested flex scrolling */
-      min-width: 0; 
-    }
-
-    .result-box {
-      text-align: left;
-      height: 100%;
-      flex-grow: 1;
-      /* Ensure flex calculation works for internal scrolling */
-      min-height: 0; 
-    }
-
-    /* Internal Scroll Area for Results */
-    .result-box-content {
-      overflow-y: auto;
-      padding-right: 10px; /* Space for scrollbar */
-      height: 100%;
-    }
-
-    /* Custom Scrollbar for nicer UI */
-    .result-box-content::-webkit-scrollbar {
-      width: 8px;
-    }
-    .result-box-content::-webkit-scrollbar-track {
-      background: #f1f1f1; 
-      border-radius: 4px;
-    }
-    .result-box-content::-webkit-scrollbar-thumb {
-      background: #a8d6a8; 
-      border-radius: 4px;
-    }
-    .result-box-content::-webkit-scrollbar-thumb:hover {
-      background: #769f53; 
-    }
-
-    /* Typography */
-    h1 {
-      color: #2f5d2f;
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    h4 {
-      color: #2f5d2f;
-      font-weight: 600;
-      font-size: 1.1rem;
-      margin-bottom: 2rem;
-    }
-
-    /* Buttons */
-    .btn-submit {
-      background-color: #769f53;
-      color: white;
-      font-weight: 600;
-      padding: 12px 25px;
-      border-radius: 10px;
-      transition: 0.3s;
-      border: none;
-    }
-
-    .btn-submit:hover {
-      background-color: #628442;
-      transform: translateY(-2px);
-      color: white;
-    }
-
-    .btn-cancel {
-      background-color: #f8f9fa;
-      color: #6c757d;
-      border: 1px solid #ced4da;
-      font-weight: 600;
-      padding: 12px 25px;
-      border-radius: 10px;
-      transition: 0.3s;
-      text-decoration: none;
-      display: inline-block;
-    }
-
-    .btn-cancel:hover {
-      background-color: #e2e6ea;
-      color: #6c757d;
-    }
-
-    .button-group {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap; /* Buttons wrap on very small screens */
-    }
-
-    /* File Upload Area */
-    .file-upload-box {
-      background-color: #e6ffe6;
-      border: 2px dashed #a8d6a8;
-      border-radius: 15px;
-      padding: 30px 20px;
-      color: #4a7c4a;
-      font-weight: 600;
-      cursor: pointer;
-      position: relative;
-      margin-bottom: 20px;
-      display: block; /* Ensures label behaves like a block */
-      transition: background-color 0.3s;
-    }
-
-    .file-upload-box:hover {
-      background-color: #d4fdd4;
-    }
-
-    .file-upload-box input[type="file"] {
-      position: absolute;
-      width: 100%;
-      height: 100%;
+      position: sticky;
       top: 0;
-      left: 0;
+      z-index: 100;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      color: var(--primary);
+      font-family: "Poppins", sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* MAIN LAYOUT */
+    .main-grid {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 30px;
+      align-items: start;
+    }
+
+    /* CARDS */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* UPLOAD COLUMN STYLES */
+    .upload-card {
+      position: sticky;
+      top: 90px;
+    }
+
+    .card-title {
+      font-family: "Poppins", sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    /* File Upload Zone - FIXED FLEXBOX LAYOUT */
+    .file-drop-zone {
+      display: flex;               /* Forces Flex Layout */
+      flex-direction: column;      /* Stacks items vertically */
+      align-items: center;         /* Centers items horizontally */
+      justify-content: center;     /* Centers items vertically */
+      background-color: #f9fafb;
+      border: 2px dashed #a5d6a7;
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      min-height: 200px;           /* Ensures a good click area */
+    }
+
+    .file-drop-zone:hover {
+      background-color: var(--primary-light);
+      border-color: var(--primary);
+    }
+
+    /* The actual file input is hidden but covers the whole box */
+    .file-drop-zone input[type="file"] {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
       opacity: 0;
       cursor: pointer;
+      z-index: 2;
+    }
+
+    /* Inline SVG Styling */
+    .upload-icon {
+      width: 64px;
+      height: 64px;
+      fill: var(--primary);
+      margin-bottom: 15px;
+      transition: transform 0.2s ease;
+    }
+
+    .file-drop-zone:hover .upload-icon {
+      transform: translateY(-5px);
+    }
+
+    .upload-text {
+      font-weight: 500;
+      color: var(--text-light);
     }
 
     /* Image Preview */
-    .image-container {
+    .preview-container {
       margin-top: 20px;
-      display: flex;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      display: none;
       justify-content: center;
       align-items: center;
-      background: #f8f9fa;
-      border-radius: 15px;
-      padding: 10px;
-      border: 1px solid #a8d6a8;
+      border: 1px solid #ddd;
     }
 
-    .uploaded-image {
-      max-height: 300px;
+    .preview-container img {
       max-width: 100%;
+      max-height: 300px;
       object-fit: contain;
-      border-radius: 10px;
+      display: block;
     }
 
-    /* MOBILE / TABLET RESPONSIVENESS 
-      (Triggers below 992px)
-    */
-    @media (max-width: 992px) {
-      body {
-        padding: 15px;
-        /* Allow page scroll on mobile */
-        height: auto; 
-      }
+    /* Buttons */
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 25px;
+    }
 
-      .main-container {
-        flex-direction: column;
-        /* Remove fixed height so content expands naturally */
-        height: auto; 
-        gap: 30px;
-      }
+    button, .btn {
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-family: "Inter", sans-serif;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      font-size: 1rem;
+      transition: transform 0.1s;
+    }
+    
+    button:active, .btn:active { transform: scale(0.98); }
 
-      .upload-column,
-      .result-box {
-        padding: 25px; /* Reduce padding on mobile */
-        width: 100%;
-      }
+    .btn-submit {
+      background-color: var(--primary);
+      color: white;
+      width: 100%;
+    }
+    
+    .btn-submit:hover { background-color: #1b5e20; }
 
-      /* On mobile, we don't want internal scrolling */
-      /* We want the box to grow with content */
-      .result-box {
-        height: auto; 
-        min-height: 300px;
-      }
+    .btn-cancel {
+      background-color: white;
+      border: 1px solid #d1d5db;
+      color: var(--text-light);
+    }
 
-      .result-box-content {
-        overflow-y: visible; /* Let the page handle scroll */
-        height: auto;
-      }
+    .btn-cancel:hover { background-color: #f3f4f6; color: var(--text-dark); }
 
-      h1 { font-size: 1.75rem; }
-      
-      .btn-submit, .btn-cancel {
-        width: 100%; /* Full width buttons on mobile */
-        margin-bottom: 5px;
-      }
-      
-      .button-group {
-        flex-direction: column;
-        gap: 10px;
-      }
+
+    /* RESULT COLUMN STYLES */
+    .result-header {
+      border-bottom: 1px solid #eee;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+    }
+
+    .pest-name {
+      font-family: "Poppins", sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 0;
+    }
+
+    .sci-name {
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--text-light);
+      margin: 5px 0 0 0;
+    }
+
+    .classification-info {
+      display: flex;
+      gap: 20px;
+      margin-top: 15px;
+      font-size: 0.9rem;
+      color: var(--text-dark);
+    }
+    
+    .classification-info span {
+      background: var(--primary-light);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .section-label {
+      text-align: center;
+      color: var(--text-light);
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      margin: 20px 0 15px 0;
+      text-transform: uppercase;
+    }
+
+    .treatments-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .treatment-box {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 15px;
+      border-top: 4px solid #ccc;
+    }
+
+    .border-cultural { border-color: #8d6e63; }
+    .border-bio { border-color: #66bb6a; }
+    .border-sanitation { border-color: #29b6f6; }
+    .border-mech { border-color: #ffa726; }
+    .border-chem { border-color: #ef5350; }
+
+    .treatment-box label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+
+    .treatment-box p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #555;
+      line-height: 1.4;
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    /* SVG for Empty State */
+    .empty-icon {
+      width: 80px;
+      height: 80px;
+      fill: #e0e0e0;
+      margin-bottom: 15px;
+    }
+
+    /* Error Alert */
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .upload-card { position: static; order: 1; }
+      .result-card { order: 2; }
     }
   </style>
 </head>
 
 <body>
-  <div class="main-container">
 
-    <div class="upload-column">
-      <div> 
-        <img src="https://cdn-icons-png.flaticon.com/512/7664/7664000.png" alt="Leaf Logo" width="60" class="mb-3">
-        <h1>Pest Image Detection</h1>
-        <h4>Upload an Image for Identification</h4>
+  <header>
+    <h1>PINEPESTIFY <span style="font-weight:400; font-size: 0.8em; opacity: 0.7;">| Upload</span></h1>
+  </header>
+  
+  <div class="main-grid">
+    
+    <div class="card upload-card">
+      <div class="card-title">Select Image</div>
 
-        <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
-          <label for="file-upload" class="file-upload-box">
-            <input type="file" name="file" id="file-upload" accept="image/*" required onchange="previewImage(event)">
-            <div class="d-flex flex-column align-items-center">
-              <i class="fas fa-image fa-2x mb-2"></i>
-              <span>Click to Upload Image</span>
-            </div>
-          </label>
+      <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
+        
+        <label for="file-upload" class="file-drop-zone">
+          <input type="file" name="file" id="file-upload" accept="image/*" required onchange="previewImage(event)">
           
-          <div class="button-group">
-            <button type="submit" class="btn btn-submit">Upload and Identify</button>
-            <a href="/user" class="btn btn-cancel">Cancel</a>
-          </div>
-        </form>
+          <svg class="upload-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+          </svg>
+          
+          <div class="upload-text">Click to browse or drag file here</div>
+        </label>
 
-        <div class="image-container" id="preview-container" style="display: {% if image_url %}flex{% else %}none{% endif %};">
-          <img id="image-preview" src="{{ image_url or '#' }}" alt="Uploaded Image" class="uploaded-image">
+        <div class="preview-container" id="preview-container" style="display: {% if image_url %}flex{% else %}none{% endif %};">
+          <img id="image-preview" src="{{ image_url or '#' }}" alt="Preview">
         </div>
 
-      </div>
+        <div class="btn-group">
+          <button type="submit" class="btn-submit">Identify Pest</button>
+          <a href="/user" class="btn btn-cancel">Cancel</a>
+        </div>
+
+      </form>
     </div>
 
-    <div class="result-column">
-      <div class="result-box">
-        {% if pest %}
-        <div class="result-box-content">
-          <h3 class="text-success fw-bold mb-3">{{ pest.common_name }}</h3>
-          <p><strong>Scientific Name:</strong> {{ pest.scientific_name }}</p>
-          <p><strong>Order:</strong> {{ pest.order_name }}</p>
-          <p><strong>Family:</strong> {{ pest.family }}</p>
-          <hr>
-          <h5 class="fw-bold text-success mt-4 mb-3">Treatment Recommendations</h5>
-          <ul class="list-group list-group-flush">
-            <li class="list-group-item"><strong>Cultural:</strong> {{ pest.cultural_methods or "N/A" }}</li>
-            <li class="list-group-item"><strong>Biological:</strong> {{ pest.biological_control or "N/A" }}</li>
-            <li class="list-group-item"><strong>Mechanical:</strong> {{ pest.mechanical_control or "N/A" }}</li>
-            <li class="list-group-item"><strong>Chemical:</strong> {{ pest.chemical_control or "N/A" }}</li>
-            <li class="list-group-item"><strong>Sanitation:</strong> {{ pest.sanitation or "N/A" }}</li>
-          </ul>
+    <div class="card result-card">
+      
+      {% if error %}
+        <div class="alert-error">
+          {{ error }}
         </div>
-        {% elif error %}
-        <div class="d-flex align-items-center justify-content-center h-100">
-          <div class="alert alert-danger mb-0 w-100 text-center">{{ error }}</div>
+      {% endif %}
+
+      {% if pest %}
+        <div class="result-header">
+          <h2 class="pest-name">{{ pest.common_name }}</h2>
+          <p class="sci-name">{{ pest.scientific_name }}</p>
+          
+          <div class="classification-info">
+            <div>Order: <span>{{ pest.order_name }}</span></div>
+            <div>Family: <span>{{ pest.family }}</span></div>
+          </div>
         </div>
-        {% else %}
-        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-muted">
-          <i class="fas fa-search fa-3x mb-3" style="color: #a8d6a8;"></i>
-          <p class="fs-5">Results will be displayed here after analysis.</p>
+
+        <div class="section-label">Treatment Recommendations</div>
+
+        <div class="treatments-grid">
+          <div class="treatment-box border-cultural">
+            <label>Cultural Methods</label>
+            <p>{{ pest.cultural_methods or "N/A" }}</p>
+          </div>
+          <div class="treatment-box border-bio">
+            <label>Biological Control</label>
+            <p>{{ pest.biological_control or "N/A" }}</p>
+          </div>
+          <div class="treatment-box border-sanitation">
+            <label>Sanitation</label>
+            <p>{{ pest.sanitation or "N/A" }}</p>
+          </div>
+          <div class="treatment-box border-mech">
+            <label>Mechanical Control</label>
+            <p>{{ pest.mechanical_control or "N/A" }}</p>
+          </div>
+          <div class="treatment-box border-chem">
+            <label>Chemical Control</label>
+            <p>{{ pest.chemical_control or "N/A" }}</p>
+          </div>
         </div>
-        {% endif %}
-      </div>
+
+      {% else %}
+        <div class="empty-state">
+           <svg class="empty-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+           </svg>
+          <h3>Waiting for Image</h3>
+          <p>Upload a clear photo of the pest to see analysis and treatment recommendations here.</p>
+        </div>
+      {% endif %}
+
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  
   <script>
     function previewImage(event) {
       var reader = new FileReader();
@@ -320,9 +423,11 @@
         output.src = reader.result;
         document.getElementById('preview-container').style.display = 'flex';
       };
-      reader.readAsDataURL(event.target.files[0]);
+      if(event.target.files[0]) {
+        reader.readAsDataURL(event.target.files[0]);
+      }
     }
   </script>
-</body>
 
+</body>
 </html>

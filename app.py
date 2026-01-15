@@ -1007,6 +1007,6 @@ if __name__ == '__main__':
             if cams[i] and cams[i].isOpened():
                 cams[i].release()
         print("Cameras released.")
-    
+        
     atexit.register(release_cameras)
     app.run(debug=True, use_reloader=False, threaded=True)
