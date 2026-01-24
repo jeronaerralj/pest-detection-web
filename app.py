@@ -34,7 +34,7 @@ if not GENAI_API_KEY:
     print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
 else:
     try:
-        genai.configure(api_key=GENAI_API_KEY)
+        genai.configure(api_key=GENAI_API_KEY) # type: ignore
         print("✅ Gemini AI Configured Successfully")
     except Exception as e:
         print(f"Error configuring Gemini: {e}")
@@ -114,7 +114,7 @@ def restrict_url_access(f):
         # 2. If no referrer, they likely typed the URL or pasted it in a new tab
         if not referrer:
             flash("Direct access is restricted. Please navigate using the website buttons.", "warning")
-            return redirect(url_for('login')) # Redirect to login or home
+            return redirect(url_for('home')) # Redirect to home/welcome page
         
         # 3. If there is a referrer, ensure it comes from YOUR site (not Google, etc.)
         referrer_host = urlparse(referrer).netloc
@@ -123,7 +123,7 @@ def restrict_url_access(f):
         if referrer_host != request_host:
             flash("Access from external sources is denied.", "danger")
             session.clear()
-            return redirect(url_for('login'))
+            return redirect(url_for('home')) # Redirect to home/welcome page
         
         return f(*args, **kwargs)
     return decorated
@@ -196,7 +196,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 for model_name in gemini_candidates:
                     try:
                         print(f"   ...Trying Gemini: {model_name}")
-                        model = genai.GenerativeModel(model_name)
+                        model = genai.GenerativeModel(model_name) # type: ignore
                         response = model.generate_content([vision_prompt, img])
                         return json.loads(clean_json_text(response.text))
                     except Exception as e:
@@ -231,7 +231,15 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                     model="Llama-3.2-90B-Vision-Instruct",
                     temperature=0,
                 )
-                return json.loads(clean_json_text(response.choices[0].message.content))
+
+                # --- FIX: Check content existence before processing ---
+                content = response.choices[0].message.content
+                if content:
+                    return json.loads(clean_json_text(content))
+                else:
+                    return None
+                # ----------------------------------------------------
+
             except Exception as e:
                 print(f"❌ GitHub Models failed: {e}")
 
@@ -259,7 +267,8 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
     # 1. Try Gemini Text
     if GENAI_API_KEY:
         try:
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            # (If you are using the Text Lookup Scenario B)
+            model = genai.GenerativeModel('gemini-2.5-flash') # type: ignore
             response = model.generate_content(system_prompt)
             return json.loads(clean_json_text(response.text))
         except: pass
@@ -277,7 +286,11 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 temperature=0,
                 response_format={"type": "json_object"} 
             )
-            return json.loads(chat_completion.choices[0].message.content)
+            # --- FIX: Safe check for Groq Content ---
+            content = chat_completion.choices[0].message.content
+            if content:
+                return json.loads(clean_json_text(content))
+            return None
         except Exception: pass
         
     return None
@@ -468,11 +481,13 @@ def handle_continuous_logging(pest_name):
             except Exception as e:
                 print(f"Error continuous logging: {e}")
 
-cams = {0: None, 1: None, 2: None}
+# --- FIX: Explicit Type Hinting to prevent Pylance errors ---
+cams: dict[int, cv2.VideoCapture | None] = {0: None, 1: None, 2: None}
 
 def get_camera(index):
     global cams
-    if cams[index] is None or not cams[index].isOpened():
+    # We add 'type: ignore' here because Pylance struggles to see that 'or' prevents access on None
+    if cams[index] is None or not cams[index].isOpened(): # type: ignore
         cams[index] = cv2.VideoCapture(index, cv2.CAP_DSHOW) 
     return cams[index]
 
@@ -487,9 +502,10 @@ def generate_frames_cam1():
     camera = get_camera(0)
 
     while True:
-        if not camera.isOpened():
+        # Check if camera is None before calling isOpened
+        if camera is None or not camera.isOpened():
             camera = get_camera(0)
-            if not camera.isOpened():
+            if camera is None or not camera.isOpened():
                 yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 1 ERROR") + b'\r\n')
                 time.sleep(2)
                 continue
@@ -534,6 +550,8 @@ def generate_frames_cam1():
                     last_confidence = best_conf
 
             # --- STEP 2: Run General Model (If no pest found) ---
+            # --- FIX: Initialize gen_results to avoid unbound variable error ---
+            gen_results = []
             if not pest_found and general_model:
                 gen_results = general_model(frame, classes=ANIMAL_CLASSES, conf=0.40, verbose=False)
                 for gr in gen_results:
@@ -546,7 +564,8 @@ def generate_frames_cam1():
                         detected_animal = gr.names[int(gr.boxes[0].cls[0])]
                         print(f"⚠️ Intruder Detected: {detected_animal} -> Marking as Unknown")
             
-            if not pest_found and (not general_model or len(gen_results[0].boxes) == 0):
+            # Check if gen_results has content safely
+            if not pest_found and (not general_model or (gen_results and len(gen_results) > 0 and len(gen_results[0].boxes) == 0)):
                  with frame_lock:
                     last_annotated_frame = frame
         else:
@@ -1059,8 +1078,8 @@ if __name__ == '__main__':
     def release_cameras():
         global cams
         for i in cams:
-            if cams[i] and cams[i].isOpened():
-                cams[i].release()
+            if cams[i] and cams[i].isOpened(): # type: ignore
+                cams[i].release() # type: ignore
         print("Cameras released.")
         
     atexit.register(release_cameras)
