@@ -6,28 +6,17 @@ import base64
 from ultralytics.models.yolo import YOLO 
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
-<<<<<<< HEAD
-import atexit 
-import re 
-import datetime 
-import time
-import json 
 import hashlib
 import uuid
-# UPDATED: Import the new SDK
 import google.generativeai as genai
-=======
-import google.generativeai as genai 
->>>>>>> ef8dc8bc0c0db2f3c10395f732f5b1385dd0c57a
 from groq import Groq 
-# --- NEW IMPORTS ---
 from openai import OpenAI  # For GitHub Models
 import ollama              # For Local Llama
-# -------------------
 import PIL.Image 
 from dotenv import load_dotenv
 from functools import wraps
 from datetime import timedelta
+from urllib.parse import urlparse # Added for URL strict checking
 
 # Load environment variables
 load_dotenv()
@@ -39,7 +28,7 @@ app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOU
 # ================== AI CONFIGURATION ==================
 GENAI_API_KEY = os.getenv('GENAI_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY') 
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN') # <--- NEW TOKEN
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN') 
 
 if not GENAI_API_KEY:
     print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
@@ -69,8 +58,7 @@ last_logged_pest = None
 # AI Threading State
 is_ai_processing = False
 ai_cooldown_timer = 0
-# --- FIX: INCREASED COOLDOWN ---
-AI_COOLDOWN_SECONDS = 60  # Increased from 15 to 60 to prevent Gemini Quota errors
+AI_COOLDOWN_SECONDS = 60  
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_DIR = os.path.join(BASE_DIR, 'database')
@@ -112,66 +100,47 @@ def close_db(error):
     if db is not None:
         db.close()
 
-<<<<<<< HEAD
-
+# --- UPDATED: STRICT URL ACCESS RESTRICTION ---
 def restrict_url_access(f):
-    """Restrict direct URL access to protected pages.
-    Ensures requests come from within the application (proper referrer or internal navigation).
-    Redirects to login if accessed directly via URL copy-paste or external referrer."""
+    """
+    Blocks Direct URL Access (Copy-Paste / Bookmarks).
+    Requires the request to have a valid 'Referer' header from the same domain.
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
-        referrer = request.headers.get('Referer', '')
+        # 1. Get the Referer (The page the user came from)
+        referrer = request.headers.get('Referer')
         
-        # Validate session token if it exists
-        if 'session_token' in session:
-            if session.get('session_token') is None:
-                flash("Session validation failed. Please log in again.", "warning")
-                return redirect(url_for('login'))
+        # 2. If no referrer, they likely typed the URL or pasted it in a new tab
+        if not referrer:
+            flash("Direct access is restricted. Please navigate using the website buttons.", "warning")
+            return redirect(url_for('login')) # Redirect to login or home
         
-        # Check if this is a direct URL access (no referrer or external referrer)
-        if referrer:
-            # Extract the host from referrer
-            from urllib.parse import urlparse
-            referrer_host = urlparse(referrer).netloc
-            request_host = request.host
-            
-            # If referrer is not from our app, block it
-            if referrer_host != request_host:
-                flash("Direct access to this page is not allowed. Please log in.", "warning")
-                session.clear()
-                return redirect(url_for('login'))
-        else:
-            # No referrer means direct URL access (e.g., pasted URL or bookmark)
-            # Only allow if user is already logged in from the current session AND has a valid session token
-            if 'admin' not in session or 'session_token' not in session:
-                flash("Please log in to access that page.", "warning")
-                return redirect(url_for('login'))
+        # 3. If there is a referrer, ensure it comes from YOUR site (not Google, etc.)
+        referrer_host = urlparse(referrer).netloc
+        request_host = request.host
+        
+        if referrer_host != request_host:
+            flash("Access from external sources is denied.", "danger")
+            session.clear()
+            return redirect(url_for('login'))
         
         return f(*args, **kwargs)
     return decorated
 
 def login_required(f):
-    """Require an active admin session and enforce session timeout.
-    Returns JSON 403 for API or XHR requests, or redirects to login for browsers.
-    Also prevents direct URL access to protected pages."""
+    """Require an active admin session and enforce session timeout."""
     @wraps(f)
     def decorated(*args, **kwargs):
         is_api = request.path.startswith('/api') or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
         
         # Check if user is logged in
-=======
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        is_api = request.path.startswith('/api') or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
->>>>>>> ef8dc8bc0c0db2f3c10395f732f5b1385dd0c57a
         if 'admin' not in session:
             if is_api:
                 return jsonify({'success': False, 'error': 'Authentication required'}), 403
             flash("Please log in to access that page.", "warning")
             return redirect(url_for('login'))
         
-<<<<<<< HEAD
         # Validate session token
         if 'session_token' not in session:
             session.clear()
@@ -181,8 +150,6 @@ def login_required(f):
             return redirect(url_for('login'))
         
         # Check session timeout
-=======
->>>>>>> ef8dc8bc0c0db2f3c10395f732f5b1385dd0c57a
         last = session.get('last_activity')
         timeout = int(os.getenv('SESSION_TIMEOUT_SEC', '900'))
         now = time.time()
@@ -193,23 +160,7 @@ def login_required(f):
             flash("Your session has expired. Please log in again.", "warning")
             return redirect(url_for('login'))
         
-<<<<<<< HEAD
-        # For non-API requests, check for direct URL access
-        if not is_api:
-            referrer = request.headers.get('Referer', '')
-            if referrer:
-                # Has referrer: verify it's from the same domain
-                from urllib.parse import urlparse
-                referrer_host = urlparse(referrer).netloc
-                request_host = request.host
-                if referrer_host != request_host:
-                    session.clear()
-                    flash("Access denied: Invalid referrer detected.", "warning")
-                    return redirect(url_for('login'))
-        
         # Update activity timestamp
-=======
->>>>>>> ef8dc8bc0c0db2f3c10395f732f5b1385dd0c57a
         session['last_activity'] = now
         return f(*args, **kwargs)
     return decorated
@@ -787,7 +738,6 @@ def login():
         username = request.form['username'].strip()
         password = request.form['password'].strip()
 
-<<<<<<< HEAD
         if not username or not password:
             return render_template('login.html', error="Please fill in all fields.")
 
@@ -795,8 +745,6 @@ def login():
         session_token = hashlib.sha256(str(uuid.uuid4()).encode()).hexdigest()
 
         # Hardcoded Main Admin
-=======
->>>>>>> ef8dc8bc0c0db2f3c10395f732f5b1385dd0c57a
         if username == 'Admin' and password == 'admin123':
             session['admin'] = username
             session['role'] = 'main'
