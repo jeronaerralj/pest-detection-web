@@ -2,160 +2,221 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard | AI Pest Detection</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
   <style>
-    /* Global Reset for layout calculation */
-    * {
-      box-sizing: border-box;
+    :root {
+      --primary: #2e7d32;
+      --primary-hover: #1b5e20;
+      --secondary: #4caf50;
+      --bg-color: #f0f2f5;
+      --card-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-light: #6b7280;
+      --danger: #d32f2f;
+      --border-radius: 12px;
+      --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
 
+    * { box-sizing: border-box; }
+
     body {
-      background-color: #b9e7b2;
-      font-family: "Poppins", sans-serif;
+      font-family: "Inter", sans-serif;
+      background-color: var(--bg-color);
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      padding: 20px; /* Prevents container from touching edges on small screens */
+      padding: 20px;
     }
 
-    .dashboard {
-      background: white;
-      border: 2px solid #6b8e23;
-      border-radius: 20px;
-      /* Responsive Sizing */
-      width: 100%;
-      max-width: 750px; /* Mimics original size on desktop */
+    .dashboard-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
       padding: 50px 40px;
       text-align: center;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-      animation: fadeIn 0.6s ease-in-out;
+      width: 100%;
+      max-width: 800px; /* Wider to accommodate 3 columns */
+      border-top: 6px solid var(--primary);
+      animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .dashboard h1 {
-      color: #4b6043;
-      font-size: 50px;
-      font-weight: 700;
+    h1 {
+      font-family: "Poppins", sans-serif;
+      color: var(--text-dark);
+      font-weight: 800;
+      font-size: 2rem;
+      margin: 0 0 10px 0;
+    }
+
+    h1 span {
+      color: var(--primary);
+    }
+
+    p {
+      font-size: 1.05rem;
+      color: var(--text-light);
+      margin: 10px 0 40px 0;
+    }
+
+    /* Grid Layout for Admin Actions */
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr); /* 3 columns for admin tasks */
+      gap: 20px;
+      width: 100%;
+      margin-bottom: 30px;
+    }
+
+    .action-btn {
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      flex-wrap: wrap; /* Allows icon to wrap on very small screens */
-      gap: 12px;
-      margin-bottom: 10px;
-      line-height: 1.2;
-    }
-
-    .dashboard h2 {
-      color: #2f3e27;
-      font-size: 30px;
-      margin-bottom: 40px;
-      margin-top: 0;
-    }
-
-    .btn {
-      display: block;
-      /* Responsive Button Widths */
-      width: 100%; 
-      max-width: 500px;
-      margin: 20px auto;
-      padding: 15px 0;
-      font-size: 20px;
-      font-weight: bold;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      color: white;
+      background-color: white;
+      color: var(--text-dark);
+      border: 2px solid #e5e7eb;
+      border-radius: var(--border-radius);
+      padding: 30px 20px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1rem;
       transition: all 0.2s ease;
+      gap: 15px;
+      height: 100%;
     }
 
-    .add-btn {
-      background-color: #6b8e23;
+    /* Icon Styling */
+    .action-btn .material-icons {
+      font-size: 2.5rem;
+      color: var(--text-light);
+      transition: color 0.2s ease;
     }
 
-    .add-btn:hover {
-      background-color: #4a6b1c;
+    /* Hover Effects */
+    .action-btn:hover {
+      border-color: var(--primary);
+      background-color: #f9fafb;
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      color: var(--primary);
     }
 
-    .register-btn {
-      background-color: #a7d129;
+    .action-btn:hover .material-icons {
+      color: var(--primary);
     }
 
-    .register-btn:hover {
-      background-color: #8fbf22;
+    /* Highlight Specific Buttons (Optional) */
+    .action-btn.add-new {
+      border-color: #a5d6a7; /* Light green border hint */
     }
 
-    .list-btn {
-      background-color: #9ccc65;
+    /* Logout Section */
+    .logout-container {
+      border-top: 1px solid #e5e7eb;
+      padding-top: 25px;
+      width: 100%;
     }
 
-    .list-btn:hover {
-      background-color: #7cb342;
+    .btn-logout {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--danger);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 10px 25px;
+      border-radius: 8px;
+      transition: background-color 0.2s;
     }
 
-    .logout-btn {
-      background-color: #7cb342;
-      /* Keep logout distinct on desktop */
-      max-width: 180px; 
-      margin-top: 40px;
+    .btn-logout:hover {
+      background-color: #ffebee;
     }
 
-    .logout-btn:hover {
-      background-color: #9ccc65;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-20px);
+    /* Animations */
+    @keyframes fadeInUp {
+      from { 
+        opacity: 0; 
+        transform: translateY(20px); 
       }
-      to {
-        opacity: 1;
-        transform: translateY(0);
+      to { 
+        opacity: 1; 
+        transform: translateY(0); 
       }
     }
 
-    /* --- MOBILE RESPONSIVENESS --- */
-    @media (max-width: 600px) {
-      .dashboard {
-        padding: 40px 20px;
+    /* --- Mobile Responsive Styles --- */
+    @media (max-width: 768px) {
+      .dashboard-card {
+        padding: 30px 20px;
       }
 
-      .dashboard h1 {
-        font-size: 32px; /* Smaller font for mobile */
+      h1 { font-size: 1.75rem; }
+
+      .action-grid {
+        grid-template-columns: 1fr; /* Stack vertically on mobile */
+        gap: 15px;
       }
 
-      .dashboard h2 {
-        font-size: 20px;
-        margin-bottom: 30px;
+      .action-btn {
+        flex-direction: row; /* Horizontal layout on mobile */
+        justify-content: flex-start;
+        padding: 20px;
+        height: auto;
       }
 
-      .btn {
-        font-size: 16px; /* Slightly smaller text in buttons */
-        padding: 12px 0;
-      }
-
-      /* On mobile, make the logout button full width for easier tapping */
-      .logout-btn {
-        max-width: 100%;
+      .action-btn .material-icons {
+        font-size: 1.8rem;
+        margin-bottom: 0;
       }
     }
   </style>
 </head>
 
 <body>
-  <div class="dashboard">
-    <h1>Admin Dashboard</h1>
-    <h2>Welcome, Admin!</h2>
+  
+  <div class="dashboard-card">
+    <h1>Admin <span>Dashboard</span></h1>
+    <p>Manage pests, users, and system data</p>
     
-    <button class="btn add-btn" onclick="window.location.href='/add_pest'">+ Add New Pest</button>
-    <button class="btn register-btn" onclick="window.location.href='/register'">+ Register New Admin</button>
-    <button class="btn list-btn" onclick="window.location.href='/pest_list'">+ View Pest List</button>
-    
-    <button class="btn logout-btn" onclick="window.location.href='/'">Logout</button>
-  </div>
-</body>
+    <div class="action-grid">
+      
+      <a href="/add_pest" class="action-btn add-new">
+        <span class="material-icons">add_circle_outline</span>
+        Add New Pest
+      </a>
+      
+      <a href="/register" class="action-btn">
+        <span class="material-icons">person_add_alt</span>
+        Register Admin
+      </a>
+      
+      <a href="/pest_list" class="action-btn">
+        <span class="material-icons">format_list_bulleted</span>
+        View Pest List
+      </a>
 
+    </div>
+
+    <div class="logout-container">
+      <a href="/" class="btn-logout">
+        <span class="material-icons" style="font-size: 1.2rem;">logout</span>
+        Logout
+      </a>
+    </div>
+  </div>
+
+</body>
 </html>

@@ -1,152 +1,227 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Register Admin</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>Register Admin | AI Pest Detection</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
   <style>
-    /* Reset box-sizing to handle padding/borders correctly */
-    * {
-      box-sizing: border-box;
+    :root {
+      --primary: #2e7d32;
+      --primary-hover: #1b5e20;
+      --bg-color: #f0f2f5;
+      --card-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-light: #6b7280;
+      --danger: #d32f2f;
+      --danger-bg: #ffebee;
+      --success: #2e7d32;
+      --success-bg: #e8f5e9;
+      --border-radius: 12px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
+    * { box-sizing: border-box; }
+
     body {
-      background-color: #b9e7b2;
-      font-family: "Poppins", sans-serif;
+      background-color: var(--bg-color);
+      font-family: "Inter", sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh; /* Allows scrolling on small screens */
+      min-height: 100vh;
       margin: 0;
-      padding: 20px; /* Prevents card from touching screen edges on mobile */
+      padding: 20px;
+      color: var(--text-dark);
     }
 
-    .form-box {
-      background: white;
-      border: 2px solid #6b8e23;
-      border-radius: 20px;
-      padding: 40px;
-      text-align: center;
+    .register-card {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
       width: 100%;
-      max-width: 480px; /* Fixed width on desktop, fluid on mobile */
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      max-width: 450px;
+      padding: 40px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      border-top: 5px solid var(--primary);
+      animation: fadeInUp 0.5s ease-out;
+    }
+
+    .header-icon {
+      font-size: 48px;
+      color: var(--primary);
+      margin-bottom: 15px;
     }
 
     h1 {
-      color: #4b6043;
-      margin-bottom: 25px;
-      font-size: 1.8rem;
+      font-family: "Poppins", sans-serif;
+      color: var(--text-dark);
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0 0 30px 0;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: left;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-light);
     }
 
     input {
       width: 100%;
       padding: 12px 15px;
+      border: 1px solid #d1d5db;
       border-radius: 8px;
-      border: 2px solid #6b8e23;
-      margin-bottom: 15px;
-      font-size: 16px; /* Prevents auto-zoom on iOS */
-      font-family: inherit;
-      outline: none;
-      transition: border-color 0.3s;
+      font-size: 1rem;
+      font-family: "Inter", sans-serif;
+      background-color: #f9fafb;
+      transition: all 0.2s ease;
     }
 
     input:focus {
-      border-color: #4a6b1c;
-      box-shadow: 0 0 5px rgba(107, 142, 35, 0.3);
+      outline: none;
+      border-color: var(--primary);
+      background-color: #fff;
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
     }
 
-    /* Container for buttons to handle layout */
+    /* Flash Messages */
+    .flash-box {
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .flash-box.error {
+      background-color: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid #ef9a9a;
+    }
+
+    .flash-box.success {
+      background-color: var(--success-bg);
+      color: var(--success);
+      border: 1px solid #a5d6a7;
+    }
+
+    /* Buttons */
     .button-group {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 15px;
       margin-top: 10px;
     }
 
     button {
-      flex: 1; /* Buttons take equal width */
       padding: 12px;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
+      font-weight: 600;
+      font-size: 1rem;
       cursor: pointer;
-      transition: background-color 0.3s;
+      font-family: "Inter", sans-serif;
+      transition: all 0.2s;
     }
 
+    button:active { transform: scale(0.98); }
+
     .btn-submit {
-      background-color: #6b8e23;
+      background-color: var(--primary);
       color: white;
     }
 
     .btn-submit:hover {
-      background-color: #4a6b1c;
+      background-color: var(--primary-hover);
     }
 
     .btn-cancel {
-      background-color: #e0e0e0;
-      color: #555;
-      text-decoration: none; /* If using <a> tag, though button is fine */
+      background-color: white;
+      border: 1px solid #d1d5db;
+      color: var(--text-light);
     }
 
     .btn-cancel:hover {
-      background-color: #d6d6d6;
+      background-color: #f3f4f6;
+      color: var(--text-dark);
     }
 
-    .flash {
-      background-color: #ffebee;
-      color: #b71c1c;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      border: 1px solid #ffcdd2;
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Mobile Tweaks */
+    /* Mobile */
     @media (max-width: 480px) {
-      .form-box {
-        padding: 30px 20px;
-      }
-
-      h1 {
-        font-size: 1.5rem;
-      }
-
-      .button-group {
-        flex-direction: column; /* Stack buttons vertically on small phones */
-        gap: 10px;
-      }
-      
-      button {
-        width: 100%;
-      }
+      .register-card { padding: 30px 20px; }
+      .button-group { grid-template-columns: 1fr; }
+      .btn-cancel { order: 2; }
     }
   </style>
 </head>
+
 <body>
-  <div class="form-box">
-    <h1>Register New Admin</h1>
-    
+
+  <div class="register-card">
+    <span class="material-icons header-icon">person_add</span>
+    <h1>Register Admin</h1>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="flash">{{ message }}</div>
+          <div class="flash-box {{ 'error' if category == 'error' else 'success' }}">
+            {{ message }}
+          </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
 
     <form method="POST" action="{{ url_for('register') }}">
-      <input type="text" name="username" placeholder="Username" required />
-      <input type="password" name="password" placeholder="Password" required />
-      <input type="password" name="confirm" placeholder="Confirm Password" required />
+      
+      <div class="input-group">
+        <label for="username">New Username</label>
+        <input type="text" id="username" name="username" placeholder="Enter username" required />
+      </div>
+
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Create password" required />
+      </div>
+
+      <div class="input-group">
+        <label for="confirm">Confirm Password</label>
+        <input type="password" id="confirm" name="confirm" placeholder="Repeat password" required />
+      </div>
       
       <div class="button-group">
         <button type="submit" class="btn-submit">Register</button>
         <button type="button" class="btn-cancel" onclick="window.location.href='/admin_dashboard'">Cancel</button>
       </div>
+
     </form>
   </div>
+
 </body>
 </html>
