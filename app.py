@@ -9,8 +9,10 @@ import re
 import datetime 
 import time
 import json 
+import hashlib
+import uuid
 # UPDATED: Import the new SDK
-from google import genai 
+import google.generativeai as genai
 from groq import Groq 
 import PIL.Image 
 from dotenv import load_dotenv
@@ -154,17 +156,65 @@ def close_db(error):
         db.close()
 
 
+def restrict_url_access(f):
+    """Restrict direct URL access to protected pages.
+    Ensures requests come from within the application (proper referrer or internal navigation).
+    Redirects to login if accessed directly via URL copy-paste or external referrer."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        referrer = request.headers.get('Referer', '')
+        
+        # Validate session token if it exists
+        if 'session_token' in session:
+            if session.get('session_token') is None:
+                flash("Session validation failed. Please log in again.", "warning")
+                return redirect(url_for('login'))
+        
+        # Check if this is a direct URL access (no referrer or external referrer)
+        if referrer:
+            # Extract the host from referrer
+            from urllib.parse import urlparse
+            referrer_host = urlparse(referrer).netloc
+            request_host = request.host
+            
+            # If referrer is not from our app, block it
+            if referrer_host != request_host:
+                flash("Direct access to this page is not allowed. Please log in.", "warning")
+                session.clear()
+                return redirect(url_for('login'))
+        else:
+            # No referrer means direct URL access (e.g., pasted URL or bookmark)
+            # Only allow if user is already logged in from the current session AND has a valid session token
+            if 'admin' not in session or 'session_token' not in session:
+                flash("Please log in to access that page.", "warning")
+                return redirect(url_for('login'))
+        
+        return f(*args, **kwargs)
+    return decorated
+
 def login_required(f):
     """Require an active admin session and enforce session timeout.
-    Returns JSON 403 for API or XHR requests, or redirects to login for browsers."""
+    Returns JSON 403 for API or XHR requests, or redirects to login for browsers.
+    Also prevents direct URL access to protected pages."""
     @wraps(f)
     def decorated(*args, **kwargs):
         is_api = request.path.startswith('/api') or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
+        
+        # Check if user is logged in
         if 'admin' not in session:
             if is_api:
                 return jsonify({'success': False, 'error': 'Authentication required'}), 403
             flash("Please log in to access that page.", "warning")
             return redirect(url_for('login'))
+        
+        # Validate session token
+        if 'session_token' not in session:
+            session.clear()
+            if is_api:
+                return jsonify({'success': False, 'error': 'Session validation failed'}), 403
+            flash("Your session is invalid. Please log in again.", "warning")
+            return redirect(url_for('login'))
+        
         # Check session timeout
         last = session.get('last_activity')
         timeout = int(os.getenv('SESSION_TIMEOUT_SEC', '900'))
@@ -175,7 +225,21 @@ def login_required(f):
                 return jsonify({'success': False, 'error': 'Session expired'}), 403
             flash("Your session has expired. Please log in again.", "warning")
             return redirect(url_for('login'))
-        # update activity
+        
+        # For non-API requests, check for direct URL access
+        if not is_api:
+            referrer = request.headers.get('Referer', '')
+            if referrer:
+                # Has referrer: verify it's from the same domain
+                from urllib.parse import urlparse
+                referrer_host = urlparse(referrer).netloc
+                request_host = request.host
+                if referrer_host != request_host:
+                    session.clear()
+                    flash("Access denied: Invalid referrer detected.", "warning")
+                    return redirect(url_for('login'))
+        
+        # Update activity timestamp
         session['last_activity'] = now
         return f(*args, **kwargs)
     return decorated
@@ -576,10 +640,14 @@ def login():
         if not username or not password:
             return render_template('login.html', error="Please fill in all fields.")
 
+        # Generate a unique session token
+        session_token = hashlib.sha256(str(uuid.uuid4()).encode()).hexdigest()
+
         # Hardcoded Main Admin
         if username == 'Admin' and password == 'admin123':
             session['admin'] = username
             session['role'] = 'main'
+            session['session_token'] = session_token
             session.permanent = True
             session['last_activity'] = time.time()
             return redirect(url_for('admin_dashboard'))
@@ -595,6 +663,7 @@ def login():
             if admin and check_password_hash(admin[1], password):
                 session['admin'] = admin[0]
                 session['role'] = admin[2]
+                session['session_token'] = session_token
                 session.permanent = True
                 session['last_activity'] = time.time()
                 return redirect(url_for('admin_dashboard'))
@@ -613,6 +682,7 @@ def logout():
     return redirect(url_for('home'))
 
 @app.route('/admin_dashboard')
+@restrict_url_access
 @login_required
 def admin_dashboard():
     if 'admin' not in session:
@@ -633,6 +703,7 @@ def admin_dashboard():
         if conn: conn.close()
 
 @app.route('/add_pest', methods=['GET', 'POST'])
+@restrict_url_access
 @login_required
 def add_pest():
     session.pop('_flashes', None)
@@ -684,6 +755,7 @@ def add_pest():
     return render_template('add_pest.html')
 
 @app.route('/delete_pest/<int:pest_id>', methods=['POST'])
+@restrict_url_access
 @login_required
 def delete_pest(pest_id):
     try:
@@ -696,6 +768,7 @@ def delete_pest(pest_id):
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/upload_pest_image', methods=['POST'])
+@restrict_url_access
 @login_required
 def upload_pest_image():
     if 'admin' not in session:
@@ -729,6 +802,7 @@ def upload_pest_image():
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/update_pests', methods=['POST'])
+@restrict_url_access
 @login_required
 def update_pests():
     if not request.is_json:
