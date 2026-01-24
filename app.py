@@ -104,26 +104,53 @@ def close_db(error):
 def restrict_url_access(f):
     """
     Blocks Direct URL Access (Copy-Paste / Bookmarks).
-    Requires the request to have a valid 'Referer' header from the same domain.
+    Requires the request to have a valid 'Referer' header from the same domain and from allowed pages.
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        # 1. Get the Referer (The page the user came from)
+        # Get the Referer (The page the user came from)
         referrer = request.headers.get('Referer')
         
-        # 2. If no referrer, they likely typed the URL or pasted it in a new tab
+        # If no referrer, they pasted URL in new tab/typed it - BLOCK
         if not referrer:
-            flash("Direct access is restricted. Please navigate using the website buttons.", "warning")
-            return redirect(url_for('home')) # Redirect to home/welcome page
+            return redirect(url_for('home'))
         
-        # 3. If there is a referrer, ensure it comes from YOUR site (not Google, etc.)
+        # Ensure referrer is from same domain
         referrer_host = urlparse(referrer).netloc
         request_host = request.host
         
         if referrer_host != request_host:
-            flash("Access from external sources is denied.", "danger")
             session.clear()
-            return redirect(url_for('home')) # Redirect to home/welcome page
+            return redirect(url_for('home'))
+        
+        # Get the referrer path
+        referrer_path = urlparse(referrer).path
+        
+        # Allowed referrer pages that can access protected routes
+        allowed_referrers = [
+            '/admin_dashboard',
+            '/add_pest',
+            '/delete_pest',
+            '/upload_pest_image',
+            '/update_pests',
+            '/register',
+            '/pest_list',
+            '/login',  # Allow from login page after successful login
+            '/user',
+            '/index',
+            '/upload',
+            '/library'
+        ]
+        
+        # Check if referrer path matches any allowed page
+        is_allowed = False
+        for allowed in allowed_referrers:
+            if referrer_path.startswith(allowed) or referrer_path == allowed:
+                is_allowed = True
+                break
+        
+        if not is_allowed:
+            return redirect(url_for('home'))
         
         return f(*args, **kwargs)
     return decorated
@@ -802,8 +829,8 @@ def logout():
     return redirect(url_for('home'))
 
 @app.route('/admin_dashboard')
-@restrict_url_access
 @login_required
+@restrict_url_access
 def admin_dashboard():
     conn = None
     try:
@@ -821,8 +848,8 @@ def admin_dashboard():
         if conn: conn.close()
 
 @app.route('/add_pest', methods=['GET', 'POST'])
-@restrict_url_access
 @login_required
+@restrict_url_access
 def add_pest():
     session.pop('_flashes', None)
     
@@ -866,8 +893,8 @@ def add_pest():
     return render_template('add_pest.html')
 
 @app.route('/delete_pest/<int:pest_id>', methods=['POST'])
-@restrict_url_access
 @login_required
+@restrict_url_access
 def delete_pest(pest_id):
     try:
         conn = get_db()
@@ -879,8 +906,8 @@ def delete_pest(pest_id):
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/upload_pest_image', methods=['POST'])
-@restrict_url_access
 @login_required
+@restrict_url_access
 def upload_pest_image():
     pest_id = request.form.get('pest_id')
     image_file = request.files.get('image_file')
@@ -910,8 +937,8 @@ def upload_pest_image():
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/update_pests', methods=['POST'])
-@restrict_url_access
 @login_required
+@restrict_url_access
 def update_pests():
     if not request.is_json:
         return jsonify({'success': False, 'error': 'Invalid request format.'}), 400
@@ -955,6 +982,7 @@ def update_pests():
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
+@restrict_url_access
 def register():
     if request.method == 'POST':
         username = request.form['username']
@@ -990,6 +1018,8 @@ def register():
     return render_template('register.html')
 
 @app.route('/pest_list')
+@login_required
+@restrict_url_access
 def pest_list():
     conn = None 
     try:
@@ -1007,6 +1037,7 @@ def pest_list():
         if conn: conn.close()
 
 @app.route('/upload', methods=['GET', 'POST'])
+@restrict_url_access
 def upload():
     if request.method == 'POST':
         file = request.files.get('file')
@@ -1056,6 +1087,7 @@ def upload():
     return render_template('pest_upload.html')
 
 @app.route('/library')
+@restrict_url_access
 def pest_library():
     try:
         pest_db = os.path.join(DB_DIR, 'pests_add.db')
@@ -1072,6 +1104,7 @@ def pest_library():
 def user_page(): return render_template('user.html') 
 
 @app.route('/index')
+@restrict_url_access
 def index_page(): return render_template('index.html')
 
 if __name__ == '__main__':
