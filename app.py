@@ -1111,8 +1111,9 @@ if __name__ == '__main__':
     def release_cameras():
         global cams
         for i in cams:
-            if cams[i] and cams[i].isOpened(): # type: ignore
-                cams[i].release() # type: ignore
+            cap = cams[i]  # Assign to local variable to fix Pylance error
+            if cap is not None and cap.isOpened():
+                cap.release()
         print("Cameras released.")
         
     atexit.register(release_cameras)
