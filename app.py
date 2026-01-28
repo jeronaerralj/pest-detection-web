@@ -367,7 +367,7 @@ patch_database_schema()
 # --- MODELS ---
 # 1. Custom Pest Model
 try:
-    model = YOLO('datapest.pt')
+    model = YOLO('native.pt')
     print("✅ Custom Pest Model Loaded")
 except:
     print("⚠️ WARNING: datapest.pt not found. Detection will fail.")
