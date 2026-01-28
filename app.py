@@ -6,16 +6,17 @@ import base64
 from ultralytics.models.yolo import YOLO 
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
-import google.generativeai as genai 
+import hashlib
+import uuid
+import google.generativeai as genai
 from groq import Groq 
-# --- NEW IMPORTS ---
 from openai import OpenAI  # For GitHub Models
 import ollama              # For Local Llama
-# -------------------
 import PIL.Image 
 from dotenv import load_dotenv
 from functools import wraps
 from datetime import timedelta
+from urllib.parse import urlparse # Added for URL strict checking
 
 # Load environment variables
 load_dotenv()
@@ -27,13 +28,13 @@ app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOU
 # ================== AI CONFIGURATION ==================
 GENAI_API_KEY = os.getenv('GENAI_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY') 
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN') # <--- NEW TOKEN
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN') 
 
 if not GENAI_API_KEY:
     print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
 else:
     try:
-        genai.configure(api_key=GENAI_API_KEY)
+        genai.configure(api_key=GENAI_API_KEY) # type: ignore
         print("✅ Gemini AI Configured Successfully")
     except Exception as e:
         print(f"Error configuring Gemini: {e}")
@@ -57,8 +58,7 @@ last_logged_pest = None
 # AI Threading State
 is_ai_processing = False
 ai_cooldown_timer = 0
-# --- FIX: INCREASED COOLDOWN ---
-AI_COOLDOWN_SECONDS = 60  # Increased from 15 to 60 to prevent Gemini Quota errors
+AI_COOLDOWN_SECONDS = 60  
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_DIR = os.path.join(BASE_DIR, 'database')
@@ -100,16 +100,83 @@ def close_db(error):
     if db is not None:
         db.close()
 
-def login_required(f):
+# --- UPDATED: STRICT URL ACCESS RESTRICTION ---
+def restrict_url_access(f):
+    """
+    Blocks Direct URL Access (Copy-Paste / Bookmarks).
+    Requires the request to have a valid 'Referer' header from the same domain and from allowed pages.
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
-        is_api = request.path.startswith('/api') or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        # Get the Referer (The page the user came from)
+        referrer = request.headers.get('Referer')
+        
+        # If no referrer, they pasted URL in new tab/typed it - BLOCK
+        if not referrer:
+            return redirect(url_for('home'))
+        
+        # Ensure referrer is from same domain
+        referrer_host = urlparse(referrer).netloc
+        request_host = request.host
+        
+        if referrer_host != request_host:
+            session.clear()
+            return redirect(url_for('home'))
+        
+        # Get the referrer path
+        referrer_path = urlparse(referrer).path
+        
+        # Allowed referrer pages that can access protected routes
+        allowed_referrers = [
+            '/admin_dashboard',
+            '/add_pest',
+            '/delete_pest',
+            '/upload_pest_image',
+            '/update_pests',
+            '/register',
+            '/pest_list',
+            '/login',  # Allow from login page after successful login
+            '/user',
+            '/index',
+            '/upload',
+            '/library'
+        ]
+        
+        # Check if referrer path matches any allowed page
+        is_allowed = False
+        for allowed in allowed_referrers:
+            if referrer_path.startswith(allowed) or referrer_path == allowed:
+                is_allowed = True
+                break
+        
+        if not is_allowed:
+            return redirect(url_for('home'))
+        
+        return f(*args, **kwargs)
+    return decorated
+
+def login_required(f):
+    """Require an active admin session and enforce session timeout."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        is_api = request.path.startswith('/api') or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
+        
+        # Check if user is logged in
         if 'admin' not in session:
             if is_api:
                 return jsonify({'success': False, 'error': 'Authentication required'}), 403
             flash("Please log in to access that page.", "warning")
             return redirect(url_for('login'))
         
+        # Validate session token
+        if 'session_token' not in session:
+            session.clear()
+            if is_api:
+                return jsonify({'success': False, 'error': 'Session validation failed'}), 403
+            flash("Your session is invalid. Please log in again.", "warning")
+            return redirect(url_for('login'))
+        
+        # Check session timeout
         last = session.get('last_activity')
         timeout = int(os.getenv('SESSION_TIMEOUT_SEC', '900'))
         now = time.time()
@@ -120,6 +187,7 @@ def login_required(f):
             flash("Your session has expired. Please log in again.", "warning")
             return redirect(url_for('login'))
         
+        # Update activity timestamp
         session['last_activity'] = now
         return f(*args, **kwargs)
     return decorated
@@ -155,7 +223,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 for model_name in gemini_candidates:
                     try:
                         print(f"   ...Trying Gemini: {model_name}")
-                        model = genai.GenerativeModel(model_name)
+                        model = genai.GenerativeModel(model_name) # type: ignore
                         response = model.generate_content([vision_prompt, img])
                         return json.loads(clean_json_text(response.text))
                     except Exception as e:
@@ -190,7 +258,15 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                     model="Llama-3.2-90B-Vision-Instruct",
                     temperature=0,
                 )
-                return json.loads(clean_json_text(response.choices[0].message.content))
+
+                # --- FIX: Check content existence before processing ---
+                content = response.choices[0].message.content
+                if content:
+                    return json.loads(clean_json_text(content))
+                else:
+                    return None
+                # ----------------------------------------------------
+
             except Exception as e:
                 print(f"❌ GitHub Models failed: {e}")
 
@@ -218,7 +294,8 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
     # 1. Try Gemini Text
     if GENAI_API_KEY:
         try:
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            # (If you are using the Text Lookup Scenario B)
+            model = genai.GenerativeModel('gemini-2.5-flash') # type: ignore
             response = model.generate_content(system_prompt)
             return json.loads(clean_json_text(response.text))
         except: pass
@@ -236,7 +313,11 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 temperature=0,
                 response_format={"type": "json_object"} 
             )
-            return json.loads(chat_completion.choices[0].message.content)
+            # --- FIX: Safe check for Groq Content ---
+            content = chat_completion.choices[0].message.content
+            if content:
+                return json.loads(clean_json_text(content))
+            return None
         except Exception: pass
         
     return None
@@ -427,11 +508,13 @@ def handle_continuous_logging(pest_name):
             except Exception as e:
                 print(f"Error continuous logging: {e}")
 
-cams = {0: None, 1: None, 2: None}
+# --- FIX: Explicit Type Hinting to prevent Pylance errors ---
+cams: dict[int, cv2.VideoCapture | None] = {0: None, 1: None, 2: None}
 
 def get_camera(index):
     global cams
-    if cams[index] is None or not cams[index].isOpened():
+    # We add 'type: ignore' here because Pylance struggles to see that 'or' prevents access on None
+    if cams[index] is None or not cams[index].isOpened(): # type: ignore
         cams[index] = cv2.VideoCapture(index, cv2.CAP_DSHOW) 
     return cams[index]
 
@@ -446,9 +529,10 @@ def generate_frames_cam1():
     camera = get_camera(0)
 
     while True:
-        if not camera.isOpened():
+        # Check if camera is None before calling isOpened
+        if camera is None or not camera.isOpened():
             camera = get_camera(0)
-            if not camera.isOpened():
+            if camera is None or not camera.isOpened():
                 yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 1 ERROR") + b'\r\n')
                 time.sleep(2)
                 continue
@@ -493,6 +577,8 @@ def generate_frames_cam1():
                     last_confidence = best_conf
 
             # --- STEP 2: Run General Model (If no pest found) ---
+            # --- FIX: Initialize gen_results to avoid unbound variable error ---
+            gen_results = []
             if not pest_found and general_model:
                 gen_results = general_model(frame, classes=ANIMAL_CLASSES, conf=0.40, verbose=False)
                 for gr in gen_results:
@@ -505,7 +591,8 @@ def generate_frames_cam1():
                         detected_animal = gr.names[int(gr.boxes[0].cls[0])]
                         print(f"⚠️ Intruder Detected: {detected_animal} -> Marking as Unknown")
             
-            if not pest_found and (not general_model or len(gen_results[0].boxes) == 0):
+            # Check if gen_results has content safely
+            if not pest_found and (not general_model or (gen_results and len(gen_results) > 0 and len(gen_results[0].boxes) == 0)):
                  with frame_lock:
                     last_annotated_frame = frame
         else:
@@ -697,9 +784,17 @@ def login():
         username = request.form['username'].strip()
         password = request.form['password'].strip()
 
+        if not username or not password:
+            return render_template('login.html', error="Please fill in all fields.")
+
+        # Generate a unique session token
+        session_token = hashlib.sha256(str(uuid.uuid4()).encode()).hexdigest()
+
+        # Hardcoded Main Admin
         if username == 'Admin' and password == 'admin123':
             session['admin'] = username
             session['role'] = 'main'
+            session['session_token'] = session_token
             session.permanent = True
             session['last_activity'] = time.time()
             return redirect(url_for('admin_dashboard'))
@@ -715,6 +810,7 @@ def login():
             if admin and check_password_hash(admin[1], password):
                 session['admin'] = admin[0]
                 session['role'] = admin[2]
+                session['session_token'] = session_token
                 session.permanent = True
                 session['last_activity'] = time.time()
                 return redirect(url_for('admin_dashboard'))
@@ -734,6 +830,7 @@ def logout():
 
 @app.route('/admin_dashboard')
 @login_required
+@restrict_url_access
 def admin_dashboard():
     conn = None
     try:
@@ -752,6 +849,7 @@ def admin_dashboard():
 
 @app.route('/add_pest', methods=['GET', 'POST'])
 @login_required
+@restrict_url_access
 def add_pest():
     session.pop('_flashes', None)
     
@@ -796,6 +894,7 @@ def add_pest():
 
 @app.route('/delete_pest/<int:pest_id>', methods=['POST'])
 @login_required
+@restrict_url_access
 def delete_pest(pest_id):
     try:
         conn = get_db()
@@ -808,6 +907,7 @@ def delete_pest(pest_id):
 
 @app.route('/upload_pest_image', methods=['POST'])
 @login_required
+@restrict_url_access
 def upload_pest_image():
     pest_id = request.form.get('pest_id')
     image_file = request.files.get('image_file')
@@ -838,6 +938,7 @@ def upload_pest_image():
 
 @app.route('/update_pests', methods=['POST'])
 @login_required
+@restrict_url_access
 def update_pests():
     if not request.is_json:
         return jsonify({'success': False, 'error': 'Invalid request format.'}), 400
@@ -881,6 +982,7 @@ def update_pests():
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
+@restrict_url_access
 def register():
     if request.method == 'POST':
         username = request.form['username']
@@ -916,6 +1018,8 @@ def register():
     return render_template('register.html')
 
 @app.route('/pest_list')
+@login_required
+@restrict_url_access
 def pest_list():
     conn = None 
     try:
@@ -933,6 +1037,7 @@ def pest_list():
         if conn: conn.close()
 
 @app.route('/upload', methods=['GET', 'POST'])
+@restrict_url_access
 def upload():
     if request.method == 'POST':
         file = request.files.get('file')
@@ -982,6 +1087,7 @@ def upload():
     return render_template('pest_upload.html')
 
 @app.route('/library')
+@restrict_url_access
 def pest_library():
     try:
         pest_db = os.path.join(DB_DIR, 'pests_add.db')
@@ -998,15 +1104,17 @@ def pest_library():
 def user_page(): return render_template('user.html') 
 
 @app.route('/index')
+@restrict_url_access
 def index_page(): return render_template('index.html')
 
 if __name__ == '__main__':
     def release_cameras():
         global cams
         for i in cams:
-            if cams[i] and cams[i].isOpened():
-                cams[i].release()
+            cap = cams[i]  # Assign to local variable to fix Pylance error
+            if cap is not None and cap.isOpened():
+                cap.release()
         print("Cameras released.")
-    
+        
     atexit.register(release_cameras)
     app.run(debug=True, use_reloader=False, threaded=True)
