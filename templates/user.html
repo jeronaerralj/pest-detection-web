@@ -5,11 +5,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>User Dashboard | AI Pest Detection</title>
-  
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
+
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
   <style>
@@ -26,7 +28,9 @@
     }
 
     /* Global Reset */
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       font-family: "Inter", sans-serif;
@@ -72,7 +76,8 @@
     /* Grid Layout for Action Buttons */
     .action-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr); /* 2 columns */
+      grid-template-columns: repeat(2, 1fr);
+      /* 2 columns */
       gap: 20px;
       width: 100%;
     }
@@ -99,7 +104,8 @@
       font-size: 2rem;
       display: block;
       margin-bottom: 5px;
-      color: var(--text-light); /* Default icon color */
+      color: var(--text-light);
+      /* Default icon color */
       transition: color 0.2s ease;
     }
 
@@ -114,7 +120,7 @@
 
     /* Make icon green on hover for regular buttons */
     .action-btn:hover .material-icons {
-        color: var(--primary);
+      color: var(--primary);
     }
 
     /* Primary Action Style (Green Background) */
@@ -126,7 +132,7 @@
 
     /* Ensure icon is white on the primary button */
     .action-btn.primary .material-icons {
-        color: white;
+      color: white;
     }
 
     .action-btn.primary:hover {
@@ -158,13 +164,14 @@
 
     /* Animations */
     @keyframes fadeInUp {
-      from { 
-        opacity: 0; 
-        transform: translateY(20px); 
+      from {
+        opacity: 0;
+        transform: translateY(20px);
       }
-      to { 
-        opacity: 1; 
-        transform: translateY(0); 
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
     }
 
@@ -174,15 +181,19 @@
         padding: 30px 20px;
       }
 
-      h1 { font-size: 1.75rem; }
+      h1 {
+        font-size: 1.75rem;
+      }
 
       .action-grid {
-        grid-template-columns: 1fr; /* Stack vertically on mobile */
+        grid-template-columns: 1fr;
+        /* Stack vertically on mobile */
         gap: 15px;
       }
 
       .action-btn {
-        flex-direction: row; /* Horizontal layout on mobile */
+        flex-direction: row;
+        /* Horizontal layout on mobile */
         justify-content: flex-start;
         padding: 20px;
         gap: 15px;
@@ -197,22 +208,22 @@
 </head>
 
 <body>
-  
+
   <div class="dashboard-card">
     <h1>Hello, <span>User!</span></h1>
-    <p>Select an option to get started</p>
-    
+    <p>Select an action to get started</p>
+
     <div class="action-grid">
       <a href="/index" class="action-btn primary">
         <span class="material-icons">videocam</span>
         Live Detection
       </a>
-      
+
       <a href="/upload" class="action-btn">
         <span class="material-icons">cloud_upload</span>
         Upload Image
       </a>
-      
+
       <a href="/library" class="action-btn">
         <span class="material-icons">menu_book</span>
         Pest Library
@@ -225,9 +236,10 @@
     </div>
 
     <div class="cancel-container">
-      <a href="/" class="btn-cancel">Log Out / Cancel</a>
+      <a href="/" class="btn-cancel">Cancel</a>
     </div>
   </div>
 
 </body>
+
 </html>

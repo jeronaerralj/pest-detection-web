@@ -5,11 +5,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Add New Pest | AI Pest Detection</title>
-  
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+    rel="stylesheet">
+
   <style>
     :root {
       --primary: #2e7d32;
@@ -23,7 +25,9 @@
       --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       background-color: var(--bg-color);
@@ -38,7 +42,7 @@
     header {
       background-color: var(--card-bg);
       padding: 15px 5%;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -81,7 +85,8 @@
       margin: 30px auto;
       padding: 0 20px;
       display: grid;
-      grid-template-columns: 350px 1fr; /* Fixed Sidebar + Fluid Content */
+      grid-template-columns: 350px 1fr;
+      /* Fixed Sidebar + Fluid Content */
       gap: 30px;
       align-items: start;
     }
@@ -137,7 +142,10 @@
 
     .file-drop-zone input[type="file"] {
       position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       opacity: 0;
       cursor: pointer;
     }
@@ -165,7 +173,7 @@
       display: none;
       border: 1px solid #ddd;
     }
-    
+
     .preview-box img {
       width: 100%;
       height: 100%;
@@ -176,7 +184,7 @@
     .classification-group {
       margin-top: 10px;
     }
-    
+
     .classification-group label {
       display: block;
       font-size: 0.85rem;
@@ -194,6 +202,7 @@
       resize: none;
       font-family: "Inter", sans-serif;
     }
+
     textarea.classification-input:focus {
       outline: none;
       border-color: var(--primary);
@@ -226,7 +235,7 @@
       letter-spacing: 0.5px;
     }
 
-    .form-group input, 
+    .form-group input,
     .form-group textarea {
       padding: 12px;
       border: 1px solid #d1d5db;
@@ -259,7 +268,8 @@
       position: relative;
     }
 
-    .section-header::before, .section-header::after {
+    .section-header::before,
+    .section-header::after {
       content: "";
       position: absolute;
       top: 50%;
@@ -267,8 +277,14 @@
       height: 1px;
       background: #e5e7eb;
     }
-    .section-header::before { left: 0; }
-    .section-header::after { right: 0; }
+
+    .section-header::before {
+      left: 0;
+    }
+
+    .section-header::after {
+      right: 0;
+    }
 
     .treatments-grid {
       display: grid;
@@ -282,11 +298,25 @@
     }
 
     /* Specific Borders for Treatments */
-    .treatment-group.cultural input { border-left: 4px solid #8d6e63; }
-    .treatment-group.bio input { border-left: 4px solid #66bb6a; }
-    .treatment-group.sanitation input { border-left: 4px solid #29b6f6; }
-    .treatment-group.mech input { border-left: 4px solid #ffa726; }
-    .treatment-group.chem input { border-left: 4px solid #ef5350; }
+    .treatment-group.cultural input {
+      border-left: 4px solid #8d6e63;
+    }
+
+    .treatment-group.bio input {
+      border-left: 4px solid #66bb6a;
+    }
+
+    .treatment-group.sanitation input {
+      border-left: 4px solid #29b6f6;
+    }
+
+    .treatment-group.mech input {
+      border-left: 4px solid #ffa726;
+    }
+
+    .treatment-group.chem input {
+      border-left: 4px solid #ef5350;
+    }
 
     /* ACTION BUTTONS */
     .button-row {
@@ -308,20 +338,30 @@
       transition: transform 0.1s;
     }
 
-    .btn:active { transform: scale(0.98); }
+    .btn:active {
+      transform: scale(0.98);
+    }
 
     .btn-submit {
       background-color: var(--primary);
       color: white;
     }
-    .btn-submit:hover { background-color: #1b5e20; }
+
+    .btn-submit:hover {
+      background-color: #1b5e20;
+    }
 
     .btn-clear {
       background-color: white;
       border: 1px solid #d1d5db;
       color: var(--text-light);
     }
-    .btn-clear:hover { background-color: #f3f4f6; color: var(--danger); border-color: #feb2b2; }
+
+    .btn-clear:hover {
+      background-color: #f3f4f6;
+      color: var(--danger);
+      border-color: #feb2b2;
+    }
 
     /* ERROR HANDLING */
     .error-msg {
@@ -333,17 +373,46 @@
 
     /* RESPONSIVE */
     @media (max-width: 1024px) {
-      .main-form { grid-template-columns: 1fr; max-width: 800px; }
-      .upload-card { position: static; margin-bottom: 20px; }
-      .preview-box { display: block; } /* Always show preview box if present */
+      .main-form {
+        grid-template-columns: 1fr;
+        max-width: 800px;
+      }
+
+      .upload-card {
+        position: static;
+        margin-bottom: 20px;
+      }
+
+      .preview-box {
+        display: block;
+      }
+
+      /* Always show preview box if present */
     }
 
     @media (max-width: 600px) {
-      .form-grid, .treatments-grid { grid-template-columns: 1fr; }
-      .full-width { grid-column: span 1; }
-      .button-row { flex-direction: column; }
-      .btn { width: 100%; }
-      .section-header::before, .section-header::after { display: none; }
+
+      .form-grid,
+      .treatments-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .full-width {
+        grid-column: span 1;
+      }
+
+      .button-row {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .section-header::before,
+      .section-header::after {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -353,7 +422,7 @@
   <header>
     <h1>Add New Pest</h1>
     <nav>
-      <a href="/admin_dashboard" class="btn-cancel-nav">Cancel & Return</a>
+      <a href="/admin_dashboard" class="btn-cancel-nav">Cancel</a>
     </nav>
   </header>
 
@@ -362,14 +431,14 @@
 
       <div class="card upload-card">
         <div class="card-title">Pest Image</div>
-        
+
         <label for="fileInput" class="file-drop-zone" id="dropZone">
           <input type="file" id="fileInput" name="image" accept="image/*" required>
-          
+
           <svg class="upload-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
           </svg>
-          
+
           <div class="upload-text" id="uploadText">Click or Drag Image Here</div>
         </label>
         <div class="error-msg" id="imageError">Please select an image.</div>
@@ -380,13 +449,14 @@
 
         <div class="classification-group">
           <label>Classification Note</label>
-          <textarea name="classification" class="classification-input" placeholder="e.g. Insecta, Coleoptera..." required></textarea>
+          <textarea name="classification" class="classification-input" placeholder="e.g. Insecta, Coleoptera..."
+            required></textarea>
         </div>
       </div>
 
       <div class="card details-card">
         <div class="card-title">General Information</div>
-        
+
         <div class="form-grid">
           <div class="form-group full-width">
             <label>Common Name</label>
@@ -444,7 +514,8 @@
         </div>
 
         <div class="button-row">
-          <button type="button" class="btn btn-clear" onclick="document.getElementById('pestForm').reset(); resetPreview();">Clear Form</button>
+          <button type="button" class="btn btn-clear"
+            onclick="document.getElementById('pestForm').reset(); resetPreview();">Clear Form</button>
           <button type="submit" class="btn btn-submit">Save Pest Data</button>
         </div>
 
@@ -460,11 +531,11 @@
     const uploadText = document.getElementById('uploadText');
     const dropZone = document.getElementById('dropZone');
 
-    fileInput.addEventListener('change', function(e) {
+    fileInput.addEventListener('change', function (e) {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
           imagePreview.src = e.target.result;
           previewBox.style.display = 'block';
           dropZone.style.display = 'none'; // Hide dropzone to save space
@@ -481,4 +552,5 @@
   </script>
 
 </body>
+
 </html>
