@@ -5,11 +5,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pest List | AI Pest Detection</title>
-  
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+    rel="stylesheet">
+
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
   <style>
@@ -25,7 +27,9 @@
       --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       background-color: var(--bg-color);
@@ -33,14 +37,15 @@
       margin: 0;
       padding: 0;
       color: var(--text-dark);
-      padding-bottom: 80px; /* Space for fixed bottom bar */
+      padding-bottom: 80px;
+      /* Space for fixed bottom bar */
     }
 
     /* HEADER */
     header {
       background-color: var(--card-bg);
       padding: 15px 5%;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -75,7 +80,10 @@
       gap: 5px;
     }
 
-    .btn-back:hover { background: #e5e7eb; color: var(--text-dark); }
+    .btn-back:hover {
+      background: #e5e7eb;
+      color: var(--text-dark);
+    }
 
     /* MAIN CONTAINER */
     .container {
@@ -96,7 +104,8 @@
       gap: 20px;
     }
 
-    .search-input, .filter-select {
+    .search-input,
+    .filter-select {
       width: 100%;
       padding: 12px 15px;
       border: 1px solid #d1d5db;
@@ -106,7 +115,8 @@
       background-color: #f9fafb;
     }
 
-    .search-input:focus, .filter-select:focus {
+    .search-input:focus,
+    .filter-select:focus {
       outline: none;
       border-color: var(--primary);
       background-color: #fff;
@@ -123,7 +133,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 1200px; 
+      min-width: 1200px;
     }
 
     thead {
@@ -141,7 +151,9 @@
       user-select: none;
     }
 
-    th:hover { background-color: #1b5e20; }
+    th:hover {
+      background-color: #1b5e20;
+    }
 
     td {
       padding: 12px 15px;
@@ -151,7 +163,9 @@
       color: #374151;
     }
 
-    tr:hover td { background-color: #f9fafb; }
+    tr:hover td {
+      background-color: #f9fafb;
+    }
 
     /* Editable Cell Styling */
     td[contenteditable="true"] {
@@ -160,7 +174,7 @@
       border-radius: 4px;
       outline: none;
       color: #1b5e20;
-      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     /* Image Column */
@@ -185,16 +199,28 @@
       justify-content: center;
     }
 
-    .btn-edit { color: var(--text-light); }
-    .btn-edit:hover { background-color: #e3f2fd; color: #1976d2; }
-    
-    .btn-edit.active { color: var(--primary); background-color: var(--primary-light); }
+    .btn-edit {
+      color: var(--text-light);
+    }
 
-    .btn-delete { color: var(--text-light); }
-    .btn-delete:hover { background-color: #ffebee; color: var(--danger); }
+    .btn-edit:hover {
+      background-color: #e3f2fd;
+      color: #1976d2;
+    }
 
-    .btn-upload { color: var(--text-light); }
-    .btn-upload:hover { background-color: #f3e5f5; color: #9c27b0; }
+    .btn-edit.active {
+      color: var(--primary);
+      background-color: var(--primary-light);
+    }
+
+    .btn-upload {
+      color: var(--text-light);
+    }
+
+    .btn-upload:hover {
+      background-color: #f3e5f5;
+      color: #9c27b0;
+    }
 
     /* FLOATING BOTTOM BAR */
     .bottom-bar {
@@ -204,7 +230,7 @@
       width: 100%;
       background: white;
       padding: 15px 30px;
-      box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
       display: flex;
       justify-content: flex-end;
       align-items: center;
@@ -226,17 +252,38 @@
       align-items: center;
       gap: 8px;
     }
-    .btn-save:hover { background-color: #1b5e20; }
-    .btn-save:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .btn-save:hover {
+      background-color: #1b5e20;
+    }
+
+    .btn-save:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
 
     /* RESPONSIVE CARD VIEW (Mobile) */
     @media (max-width: 992px) {
-      thead { display: none; }
-      
-      .filter-card { grid-template-columns: 1fr; }
-      .table-container { background: transparent; box-shadow: none; }
+      thead {
+        display: none;
+      }
 
-      table, tbody, tr, td { display: block; width: 100%; }
+      .filter-card {
+        grid-template-columns: 1fr;
+      }
+
+      .table-container {
+        background: transparent;
+        box-shadow: none;
+      }
+
+      table,
+      tbody,
+      tr,
+      td {
+        display: block;
+        width: 100%;
+      }
 
       tr {
         background: white;
@@ -256,7 +303,12 @@
         border-bottom: 1px solid #f0f0f0;
       }
 
-      td:last-child { border-bottom: none; padding-top: 15px; justify-content: flex-end; gap: 10px; }
+      td:last-child {
+        border-bottom: none;
+        padding-top: 15px;
+        justify-content: flex-end;
+        gap: 10px;
+      }
 
       td::before {
         content: attr(data-label);
@@ -273,15 +325,18 @@
         align-items: flex-start;
         gap: 10px;
       }
-      
-      .pest-img { width: 100px; height: 100px; }
-      
+
+      .pest-img {
+        width: 100px;
+        height: 100px;
+      }
+
       td[contenteditable="true"] {
         background-color: #f9fafb !important;
         padding: 10px;
         margin-top: 5px;
         text-align: left;
-        display: block; 
+        display: block;
       }
     }
   </style>
@@ -297,20 +352,13 @@
   </header>
 
   <div class="container">
-    
+
     <div class="filter-card">
-      <input type="text" id="searchInput" class="search-input" placeholder="Search pests (Name, Crop, etc)...">
-      <select id="cropFilter" class="filter-select">
-          <option value="">All Crops</option>
-          <option value="Banana">Banana</option>
-          <option value="Coconut">Coconut</option>
-          <option value="Corn">Corn</option>
-          <option value="Durian">Durian</option>
-          <option value="Mango">Mango</option>
-          <option value="Pineapple">Pineapple</option>
-          <option value="Rice">Rice</option>
-          <option value="Sugarcane">Sugarcane</option>
-          <option value="Vegetables">Vegetables</option>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search pests (Name, etc)...">
+      <select id="typeFilter" class="filter-select">
+        <option value="">Select Pest Type</option>
+        <option value="Native Species">Native Species</option>
+        <option value="Non-Native Species">Non-Native Species</option>
       </select>
     </div>
 
@@ -319,7 +367,7 @@
       <table id="mainTable">
         <thead>
           <tr>
-            <th onclick="sortTable(0)">Crop</th>
+            <th onclick="sortTable(0)">Type</th>
             <th onclick="sortTable(1)">Common Name</th>
             <th onclick="sortTable(2)">Scientific Name</th>
             <th onclick="sortTable(3)">Order</th>
@@ -337,9 +385,11 @@
         <tbody id="pestTable">
           {% for pest in pests %}
           <tr data-id="{{pest.id}}">
-            <td data-label="Crop" contenteditable="false">{{ pest.crop }}</td>
-            <td data-label="Common Name" contenteditable="false" style="font-weight: 600; color: var(--primary);">{{ pest.common_name }}</td>
-            <td data-label="Scientific Name" contenteditable="false" style="font-style: italic;">{{ pest.scientific_name }}</td>
+            <td data-label="Type" contenteditable="false">{{ pest.type }}</td>
+            <td data-label="Common Name" contenteditable="false" style="font-weight: 600; color: var(--primary);">{{
+              pest.common_name }}</td>
+            <td data-label="Scientific Name" contenteditable="false" style="font-style: italic;">{{ pest.scientific_name
+              }}</td>
             <td data-label="Order" contenteditable="false">{{ pest.order_name }}</td>
             <td data-label="Family" contenteditable="false">{{ pest.family }}</td>
             <td data-label="Classification" contenteditable="false">{{ pest.classification }}</td>
@@ -348,27 +398,25 @@
             <td data-label="Sanitation" contenteditable="false">{{ pest.sanitation }}</td>
             <td data-label="Mechanical Control" contenteditable="false">{{ pest.mechanical_control }}</td>
             <td data-label="Chemical Control" contenteditable="false">{{ pest.chemical_control }}</td>
-            
+
             <td data-label="Image">
-                {% if pest.image %}
-                <img src="/static/{{ pest.image }}" class="pest-img"> 
-                {% else %}
-                <span style="font-size: 0.8rem; color: #ccc;">No Img</span>
-                {% endif %}
-                
-                <input type="file" class="upload-image-input" style="display: none;" accept="image/*" data-pest-id="{{ pest.id }}">
+              {% if pest.image %}
+              <img src="/static/{{ pest.image }}" class="pest-img">
+              {% else %}
+              <span style="font-size: 0.8rem; color: #ccc;">No Img</span>
+              {% endif %}
+
+              <input type="file" class="upload-image-input" style="display: none;" accept="image/*"
+                data-pest-id="{{ pest.id }}">
             </td>
-            
+
             <td data-label="Actions" style="text-align: center;">
-                <button class="action-btn btn-upload upload-image-btn" title="Upload Image">
-                  <span class="material-icons">add_a_photo</span>
-                </button>
-                <button class="action-btn btn-edit edit-btn" title="Edit">
-                  <span class="material-icons">edit</span>
-                </button>
-                <button class="action-btn btn-delete delete-btn" title="Delete">
-                  <span class="material-icons">delete</span>
-                </button>
+              <button class="action-btn btn-upload upload-image-btn" title="Upload Image">
+                <span class="material-icons">add_a_photo</span>
+              </button>
+              <button class="action-btn btn-edit edit-btn" title="Edit">
+                <span class="material-icons">edit</span>
+              </button>
             </td>
           </tr>
           {% endfor %}
@@ -376,10 +424,10 @@
       </table>
     </div>
     {% else %}
-      <div style="text-align: center; padding: 50px; background: white; border-radius: 12px;">
-        <span class="material-icons" style="font-size: 48px; color: #ddd;">pest_control</span>
-        <p style="color: var(--text-light);">No pest data found in the database.</p>
-      </div>
+    <div style="text-align: center; padding: 50px; background: white; border-radius: 12px;">
+      <span class="material-icons" style="font-size: 48px; color: #ddd;">pest_control</span>
+      <p style="color: var(--text-light);">No pest data found in the database.</p>
+    </div>
     {% endif %}
 
   </div>
@@ -396,199 +444,179 @@
   <script>
     // --- SEARCH & FILTER ---
     function applySearchAndFilter() {
-        const searchTerm = document.getElementById("searchInput").value.toUpperCase();
-        const filterTerm = document.getElementById("cropFilter").value.toUpperCase();
-        const rows = document.getElementById("pestTable").getElementsByTagName("tr");
-        
-        for (let row of rows) {
-            // Index 0 is now Crop because ID was removed
-            const cropCell = row.getElementsByTagName("td")[0]; 
-            if (cropCell) {
-                const cropText = cropCell.textContent || cropCell.innerText;
-                const rowText = row.textContent || row.innerText;
-                
-                const cropMatch = (filterTerm === "" || cropText.toUpperCase().indexOf(filterTerm) > -1);
-                const searchMatch = (rowText.toUpperCase().indexOf(searchTerm) > -1);
-                
-                row.style.display = (cropMatch && searchMatch) ? "" : "none";
-            }
+      const searchTerm = document.getElementById("searchInput").value.toUpperCase();
+      const filterTerm = document.getElementById("typeFilter").value.toUpperCase();
+      const rows = document.getElementById("pestTable").getElementsByTagName("tr");
+
+      for (let row of rows) {
+        const typeCell = row.getElementsByTagName("td")[0];
+        if (typeCell) {
+          const typeText = typeCell.textContent || typeCell.innerText;
+          const rowText = row.textContent || row.innerText;
+
+          const typeMatch = (filterTerm === "" || typeText.toUpperCase().indexOf(filterTerm) > -1);
+          const searchMatch = (rowText.toUpperCase().indexOf(searchTerm) > -1);
+
+          row.style.display = (typeMatch && searchMatch) ? "" : "none";
         }
+      }
     }
 
     document.getElementById('searchInput').addEventListener('keyup', applySearchAndFilter);
-    document.getElementById('cropFilter').addEventListener('change', applySearchAndFilter);
+    document.getElementById('typeFilter').addEventListener('change', applySearchAndFilter);
 
 
     // --- SORTING ---
     var sortDirection = {};
     function sortTable(n) {
-        var tbody = document.getElementById("pestTable");
-        var rows = Array.from(tbody.rows);
-        var dir = sortDirection[n] === "asc" ? "desc" : "asc";
-        sortDirection[n] = dir;
+      var tbody = document.getElementById("pestTable");
+      var rows = Array.from(tbody.rows);
+      var dir = sortDirection[n] === "asc" ? "desc" : "asc";
+      sortDirection[n] = dir;
 
-        rows.sort(function(rowA, rowB) {
-            var cellA = rowA.cells[n].innerText.toLowerCase();
-            var cellB = rowB.cells[n].innerText.toLowerCase();
+      rows.sort(function (rowA, rowB) {
+        var cellA = rowA.cells[n].innerText.toLowerCase();
+        var cellB = rowB.cells[n].innerText.toLowerCase();
 
-            var numA = parseFloat(cellA);
-            var numB = parseFloat(cellB);
+        var numA = parseFloat(cellA);
+        var numB = parseFloat(cellB);
 
-            if (!isNaN(numA) && !isNaN(numB)) {
-                return dir === "asc" ? numA - numB : numB - numA;
-            }
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return dir === "asc" ? numA - numB : numB - numA;
+        }
 
-            if (cellA < cellB) return dir === "asc" ? -1 : 1;
-            if (cellA > cellB) return dir === "asc" ? 1 : -1;
-            return 0;
-        });
+        if (cellA < cellB) return dir === "asc" ? -1 : 1;
+        if (cellA > cellB) return dir === "asc" ? 1 : -1;
+        return 0;
+      });
 
-        rows.forEach(function(row) {
-            tbody.appendChild(row);
-        });
+      rows.forEach(function (row) {
+        tbody.appendChild(row);
+      });
     }
 
+    // --- EDIT MODE ---
+    document.querySelectorAll(".edit-btn").forEach(btn => {
+      btn.addEventListener("click", function () {
+        const row = this.closest("tr");
+        const icon = this.querySelector('.material-icons');
 
-    // --- DELETE PEST ---
-    document.addEventListener("DOMContentLoaded", () => {
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const row = this.closest('tr');
-                const pestName = row.querySelector('td[data-label="Common Name"]').innerText;
-                
-                if (confirm(`Are you sure you want to delete "${pestName}"?`)) {
-                    fetch(`/delete_pest/${row.dataset.id}`, { method: 'POST' })
-                        .then(res => res.json()).then(data => {
-                            if (data.success) { row.remove(); } else { alert('Delete failed: ' + data.error); }
-                        }).catch(err => alert('Error: ' + err));
-                }
-            });
+        const editableCells = Array.from(row.querySelectorAll("td")).slice(0, 11);
+
+        const isEditing = this.classList.contains('active');
+
+        if (isEditing) {
+          editableCells.forEach(td => td.contentEditable = false);
+          this.classList.remove("active");
+          icon.textContent = "edit";
+        } else {
+          editableCells.forEach(td => td.contentEditable = true);
+          this.classList.add("active");
+          icon.textContent = "check";
+          if (window.innerWidth < 992) {
+            row.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      });
+    });
+
+
+    // --- SAVE ALL ---
+    document.getElementById("saveAllBtn").addEventListener("click", async () => {
+      const rows = document.querySelectorAll("tbody tr[data-id]");
+      const updatedData = [];
+
+      rows.forEach(row => {
+        const cells = row.querySelectorAll("td");
+        // Indices shifted left by 1 because ID column is gone
+        updatedData.push({
+          id: row.dataset.id,
+          type: cells[0].innerText.trim(),
+          common_name: cells[1].innerText.trim(),
+          scientific_name: cells[2].innerText.trim(),
+          order_name: cells[3].innerText.trim(),
+          family: cells[4].innerText.trim(),
+          classification: cells[5].innerText.trim(),
+          cultural_methods: cells[6].innerText.trim(),
+          biological_control: cells[7].innerText.trim(),
+          sanitation: cells[8].innerText.trim(),
+          mechanical_control: cells[9].innerText.trim(),
+          chemical_control: cells[10].innerText.trim(),
         });
+      });
 
+      if (updatedData.length === 0) return alert("No data to save.");
 
-        // --- EDIT MODE ---
-        document.querySelectorAll(".edit-btn").forEach(btn => {
-            btn.addEventListener("click", function () {
-                const row = this.closest("tr");
-                const icon = this.querySelector('.material-icons');
-                
-                // Adjusted slice: 0 to 11 (Crop -> Chemical)
-                const editableCells = Array.from(row.querySelectorAll("td")).slice(0, 11); 
-                
-                const isEditing = this.classList.contains('active');
+      try {
+        const btn = document.getElementById("saveAllBtn");
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = `<span class="material-icons">autorenew</span> Saving...`;
+        btn.disabled = true;
 
-                if (isEditing) {
-                    editableCells.forEach(td => td.contentEditable = false);
-                    this.classList.remove("active");
-                    icon.textContent = "edit";
-                } else {
-                    editableCells.forEach(td => td.contentEditable = true);
-                    this.classList.add("active");
-                    icon.textContent = "check"; 
-                    if(window.innerWidth < 992) {
-                       row.scrollIntoView({behavior: "smooth", block: "center"});
-                    }
-                }
-            });
+        const res = await fetch("/update_pests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pests: updatedData })
         });
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          alert("Changes saved successfully!");
+          location.reload();
+        } else {
+          alert("Failed to save: " + (result.error || "Unknown error"));
+        }
+
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+      } catch (err) {
+        alert("Network error: " + err);
+      }
+    });
 
 
-        // --- SAVE ALL ---
-        document.getElementById("saveAllBtn").addEventListener("click", async () => {
-            const rows = document.querySelectorAll("tbody tr[data-id]");
-            const updatedData = [];
-            
-            rows.forEach(row => {
-                const cells = row.querySelectorAll("td");
-                // Indices shifted left by 1 because ID column is gone
-                updatedData.push({
-                    id: row.dataset.id,
-                    crop: cells[0].innerText.trim(), 
-                    common_name: cells[1].innerText.trim(),
-                    scientific_name: cells[2].innerText.trim(), 
-                    order_name: cells[3].innerText.trim(),
-                    family: cells[4].innerText.trim(), 
-                    classification: cells[5].innerText.trim(),
-                    cultural_methods: cells[6].innerText.trim(), 
-                    biological_control: cells[7].innerText.trim(),
-                    sanitation: cells[8].innerText.trim(), 
-                    mechanical_control: cells[9].innerText.trim(),
-                    chemical_control: cells[10].innerText.trim(),
-                });
-            });
+    // --- IMAGE UPLOAD ---
+    document.querySelectorAll('.upload-image-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const row = this.closest('tr');
+        const fileInput = row.querySelector('.upload-image-input');
+        fileInput.click();
+      });
+    });
 
-            if (updatedData.length === 0) return alert("No data to save.");
+    document.querySelectorAll('.upload-image-input').forEach(input => {
+      input.addEventListener('change', async function () {
+        const row = this.closest('tr');
+        const pestId = row.dataset.id;
+        const file = this.files[0];
 
-            try {
-                const btn = document.getElementById("saveAllBtn");
-                const originalContent = btn.innerHTML;
-                btn.innerHTML = `<span class="material-icons">autorenew</span> Saving...`;
-                btn.disabled = true;
+        if (!file) return;
 
-                const res = await fetch("/update_pests", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ pests: updatedData })
-                });
-                const result = await res.json();
-                
-                if (res.ok && result.success) {
-                    alert("Changes saved successfully!");
-                    location.reload();
-                } else {
-                    alert("Failed to save: " + (result.error || "Unknown error"));
-                }
-                
-                btn.innerHTML = originalContent;
-                btn.disabled = false;
-            } catch (err) {
-                alert("Network error: " + err);
-            }
-        });
+        const formData = new FormData();
+        formData.append('image_file', file);
+        formData.append('pest_id', pestId);
 
+        try {
+          row.style.opacity = 0.5; // Visual feedback
+          const res = await fetch("/upload_pest_image", {
+            method: "POST",
+            body: formData
+          });
+          const result = await res.json();
 
-        // --- IMAGE UPLOAD ---
-        document.querySelectorAll('.upload-image-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const row = this.closest('tr');
-                const fileInput = row.querySelector('.upload-image-input');
-                fileInput.click();
-            });
-        });
-
-        document.querySelectorAll('.upload-image-input').forEach(input => {
-            input.addEventListener('change', async function () {
-                const row = this.closest('tr');
-                const pestId = row.dataset.id; 
-                const file = this.files[0];
-                
-                if (!file) return; 
-                
-                const formData = new FormData();
-                formData.append('image_file', file);
-                formData.append('pest_id', pestId); 
-
-                try {
-                    row.style.opacity = 0.5; // Visual feedback
-                    const res = await fetch("/upload_pest_image", {
-                        method: "POST",
-                        body: formData 
-                    });
-                    const result = await res.json();
-                    
-                    if (res.ok && result.success) {
-                        location.reload(); 
-                    } else {
-                        alert("Upload failed: " + (result.error || "Unknown error"));
-                        row.style.opacity = 1.0;
-                    }
-                } catch (err) {
-                    alert("Network error: " + err);
-                    row.style.opacity = 1.0;
-                }
-            });
-        });
+          if (res.ok && result.success) {
+            location.reload();
+          } else {
+            alert("Upload failed: " + (result.error || "Unknown error"));
+            row.style.opacity = 1.0;
+          }
+        } catch (err) {
+          alert("Network error: " + err);
+          row.style.opacity = 1.0;
+        }
+      });
     });
   </script>
 </body>
+
 </html>

@@ -1,4 +1,3 @@
-# app.py imports
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify, Response
 import sqlite3, os, cv2, threading, atexit, re, datetime, time, json
 import numpy as np 
@@ -10,15 +9,14 @@ import hashlib
 import uuid
 import google.generativeai as genai
 from groq import Groq 
-from openai import OpenAI  # For GitHub Models
-import ollama              # For Local Llama
+from openai import OpenAI
+import ollama
 import PIL.Image 
 from dotenv import load_dotenv
 from functools import wraps
 from datetime import timedelta
-from urllib.parse import urlparse # Added for URL strict checking
+from urllib.parse import urlparse
 
-# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
@@ -49,11 +47,13 @@ if not GITHUB_TOKEN:
 frame_lock = threading.Lock()
 db_lock = threading.Lock()
 
-last_detected_pest = ""           
+last_detected_pest = "" 
+pest_detection_timeout = 0          
 is_detection_running = False      
 last_annotated_frame = None       
 last_confidence = 0.0
 last_logged_pest = None 
+ai_result_override = None
 
 # AI Threading State
 is_ai_processing = False
@@ -197,21 +197,39 @@ def login_required(f):
 def fetch_pest_info_from_ai(pest_name, image_path=None):
     # Data structure we expect back
     json_structure = {
+        "type": "Non-Native Species",
         "common_name": "Standard Name",
         "scientific_name": "Latin Name",
         "classification": "Insect/Fungi/etc",
         "family": "Family Name",
         "order_name": "Order Name",
-        "cultural_methods": "1-2 sentence advice",
-        "biological_control": "1-2 sentence advice",
-        "sanitation": "1-2 sentence advice",
-        "mechanical_control": "1-2 sentence advice",
-        "chemical_control": "1-2 sentence advice"
+        "cultural_methods": "Preventative farming practices 1-2 sentences",
+        "biological_control": "Natural predators or biological agents 1-2 sentence",
+        "sanitation": "Cleaning and removal advice 1-2 sentence",
+        "mechanical_control": "Physical traps or barriers 1-2 sentence",
+        "chemical_control": "Pesticides or chemical deterrents 1-2 sentence"
     }
+
+    base_prompt = f"""
+    You are an expert Agronomist and AI Pest Specialist for Pineapple Farming.
+    Analyze the subject.
+    
+    TASK: Identify the species and provide management details for a Pineapple Farm.
+    
+    CRITICAL RULES:
+    1. Return valid JSON only. No markdown formatting.
+    2. You MUST fill every field in this structure: {json.dumps(json_structure)}
+    3. If the subject is an animal (e.g., Cat, Bird, Rat):
+       - 'Chemical Control': Suggest repellents or 'None needed'.
+       - 'Mechanical Control': Suggest fences or traps.
+       - 'Cultural Methods': Suggest habitat modification.
+    4. If the subject is not a pest (e.g., Ladybug), explain why it is beneficial in the fields.
+    5. Keep descriptions concise (max 2 sentences per field) to fit the UI cards.
+    """
 
     # --- SCENARIO A: VISION IDENTIFICATION ---
     if (pest_name.lower() in ["unknown", "negative"]) and image_path:
-        print(f"👁️ AI Vision: Analyzing image...")
+        print(f"AI Vision: Analyzing image...")
         
         # 1. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
@@ -268,10 +286,10 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 # ----------------------------------------------------
 
             except Exception as e:
-                print(f"❌ GitHub Models failed: {e}")
+                print(f"GitHub Models failed: {e}")
 
         # 3. Try Ollama (Option 3 - Local Backup)
-        print("   👉 Switching to Local Ollama...")
+        print("Switching to Local Ollama...")
         try:
             response = ollama.chat(
                 model='llama3.2-vision',
@@ -283,9 +301,9 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
             )
             return json.loads(clean_json_text(response['message']['content']))
         except Exception as e:
-            print(f"❌ Ollama failed (Is it running?): {e}")
+            print(f"Ollama failed (Is it running?): {e}")
 
-        print("❌ All AI Vision models failed.")
+        print("All AI Vision models failed.")
         return None
 
     # --- SCENARIO B: TEXT LOOKUP ---
@@ -322,62 +340,91 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         
     return None
 
+def start_ai_analysis_thread(frame_image):
+    """
+    Handles file saving AND AI analysis in the background
+    so the main thread (and camera) never freezes.
+    """
+    try:
+        # 1. Save File (This was likely causing the freeze)
+        temp_filename = f"unknown_{int(time.time())}.jpg"
+        temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
+        cv2.imwrite(temp_path, frame_image)
+        
+        # 2. Call the existing analysis logic
+        process_unknown_pest_background(temp_path)
+        
+    except Exception as e:
+        print(f"❌ Thread Start Error: {e}")
+        global is_ai_processing
+        is_ai_processing = False # Reset flag if it crashes
+
 def process_unknown_pest_background(image_path):
     """Background thread function to handle AI analysis."""
-    global is_ai_processing, last_detected_pest
+    global is_ai_processing, last_detected_pest, ai_result_override 
     
     print("🚀 Background Thread Started: Analyzing Unknown Pest...")
     try:
-        # Call the AI logic
+        # 1. Attempt AI Identification
         ai_data = fetch_pest_info_from_ai("Unknown", image_path=image_path)
 
+        # 2. Validate AI Response
         if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None]:
-            identified_name = ai_data.get('common_name')
+            identified_name = ai_data.get('common_name').strip()
             print(f"✅ AI Identified: {identified_name}")
 
-            # Save to Database
-            with db_lock:
-                conn = sqlite3.connect(DATABASE, timeout=10)
-                c = conn.cursor()
-                
-                # Check duplicate
-                c.execute("SELECT id FROM pests WHERE common_name = ?", (identified_name,))
-                if not c.fetchone():
-                    # Use the filename from the temp path
+            # 3. Save to Database (With Retry/Timeout)
+            try:
+                with db_lock:
+                    # Timeout=30 prevents "Database Locked" errors
+                    conn = sqlite3.connect(DATABASE, timeout=30) 
+                    c = conn.cursor()
+                    
                     filename = os.path.basename(image_path)
                     db_image_path = f"uploads/{filename}"
                     
-                    c.execute('''INSERT INTO pests (
-                        crop, common_name, scientific_name, order_name, family, classification,
-                        cultural_methods, biological_control, sanitation, mechanical_control, chemical_control, image, yolo_name
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
-                        "Pineapple", 
-                        identified_name, 
-                        ai_data.get('scientific_name'), 
-                        ai_data.get('order_name'), 
-                        ai_data.get('family'), 
-                        ai_data.get('classification'), 
-                        ai_data.get('cultural_methods'), 
-                        ai_data.get('biological_control'), 
-                        ai_data.get('sanitation'), 
-                        ai_data.get('mechanical_control'), 
-                        ai_data.get('chemical_control'), 
-                        db_image_path,
-                        identified_name 
-                    ))
-                    conn.commit()
-                    print(f"💾 Saved {identified_name} to Database.")
-                conn.close()
+                    # Check if exists
+                    c.execute("SELECT id FROM pests WHERE common_name = ?", (identified_name,))
+                    if not c.fetchone():
+                        # Use .get() with defaults to prevent crashes if AI misses a field
+                        c.execute('''INSERT INTO pests (type, 
+                            common_name, scientific_name, order_name, family, classification,
+                            cultural_methods, biological_control, sanitation, mechanical_control, chemical_control, image, yolo_name
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
+                            "Non-Native Species", 
+                            identified_name, 
+                            ai_data.get('scientific_name', 'N/A'), 
+                            ai_data.get('order_name', 'N/A'), 
+                            ai_data.get('family', 'N/A'), 
+                            ai_data.get('classification', 'Non-Native/Intruder'), 
+                            ai_data.get('cultural_methods', 'Monitor presence.'), 
+                            ai_data.get('biological_control', 'None recommended.'), 
+                            ai_data.get('sanitation', 'Keep area clean.'), 
+                            ai_data.get('mechanical_control', 'Physical removal if necessary.'), 
+                            ai_data.get('chemical_control', 'None recommended.'), 
+                            db_image_path,
+                            identified_name 
+                        ))
+                        conn.commit()
+                        print(f"💾 Saved '{identified_name}' to Database.")
+                    conn.close()
+            except Exception as db_e:
+                print(f"⚠️ Database Save Failed (Showing Name Only): {db_e}")
 
-            # Update the global variable so UI sees the new name immediately
+            # 4. CRITICAL: Set the Override so Camera shows the Name
+            ai_result_override = identified_name
             last_detected_pest = identified_name
+            
         else:
-            print("❌ AI returned N/A or failed to identify.")
+            print("❌ AI Identification Failed (Returned N/A or None).")
+            # Optional: Set a fallback message so UI knows it failed
+            ai_result_override = "Unidentified Object"
+            last_detected_pest = "Unidentified Object"
             
     except Exception as e:
-        print(f"❌ Background Thread Error: {e}")
+        print(f"❌ Critical Background Error: {e}")
     finally:
-        is_ai_processing = False  # Release the lock
+        is_ai_processing = False  # Release lock so it can try again later
 
 # ================== DB INIT & PATCHING ==================
 def init_databases():
@@ -401,7 +448,7 @@ def init_databases():
     c.execute("""
         CREATE TABLE IF NOT EXISTS pests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            crop TEXT,
+            type TEXT,
             common_name TEXT,
             scientific_name TEXT,
             order_name TEXT,
@@ -489,15 +536,17 @@ def handle_continuous_logging(pest_name):
     global last_logged_pest, last_annotated_frame
     
     if pest_name and pest_name != last_logged_pest:
-        frame_copy = None
-        with frame_lock:
-            if last_annotated_frame is not None:
-                frame_copy = last_annotated_frame.copy()
+        # NO LOCKS. Just grab the reference.
+        current_ref = last_annotated_frame
         
-        if frame_copy is not None:
+        if current_ref is not None:
             try:
+                frame_copy = current_ref.copy() # Snapshot
+                
                 safe_name = secure_filename(f"{pest_name}_{int(time.time())}.jpg")
                 save_path = os.path.join(STATIC_FOLDER, 'history', safe_name)
+                
+                # Write to disk
                 cv2.imwrite(save_path, frame_copy)
                 
                 db_path = f"history/{safe_name}"
@@ -506,7 +555,7 @@ def handle_continuous_logging(pest_name):
                 last_logged_pest = pest_name 
                 print(f"✅ Auto-logged: {pest_name}")
             except Exception as e:
-                print(f"Error continuous logging: {e}")
+                print(f"Error continuous logging: {e}")   
 
 # --- FIX: Explicit Type Hinting to prevent Pylance errors ---
 cams: dict[int, cv2.VideoCapture | None] = {0: None, 1: None, 2: None}
@@ -515,7 +564,7 @@ def get_camera(index):
     global cams
     # We add 'type: ignore' here because Pylance struggles to see that 'or' prevents access on None
     if cams[index] is None or not cams[index].isOpened(): # type: ignore
-        cams[index] = cv2.VideoCapture(index, cv2.CAP_DSHOW) 
+        cams[index] = cv2.VideoCapture(index) 
     return cams[index]
 
 def get_blank_frame(text="CAMERA NOT FOUND"):
@@ -524,84 +573,198 @@ def get_blank_frame(text="CAMERA NOT FOUND"):
     ret, buffer = cv2.imencode('.jpg', blank)
     return buffer.tobytes()
 
+def is_detection_logical(label, box_w, box_h, frame_w, frame_h):
+    """
+    Validates detections based on biological constraints (Size & Shape).
+    Returns True if valid, False if it's a likely hallucination.
+    """
+    # Calculate Metrics
+    area = box_w * box_h
+    screen_area = frame_w * frame_h
+    coverage = (area / screen_area) * 100
+    
+    # Aspect Ratio (Long vs. Square)
+    # Ratio of 1.0 = Perfect Square. Ratio of 3.0 = Long Rectangle.
+    short_side = min(box_w, box_h)
+    long_side = max(box_w, box_h)
+    ratio = long_side / short_side if short_side > 0 else 0
+
+    # --- RULE 1: RHINOCEROS BEETLE (The Giant) ---
+    # Must be chunky and large.
+    # Reject if it's a tiny speck (likely a fly in the distance).
+    if label == "Rhinoceros Beetle":
+        if coverage < 1.5: return False # Too small
+        return True
+
+    # --- RULE 2: CUTWORM LARVA (The Worm) ---
+    # Larvae are long tubes. 
+    # Reject if the box is a perfect square (likely a rock or dirt patch).
+    if label == "Cutworm Larva":
+        if ratio < 1.3: return False # Too square
+        return True
+
+    # --- RULE 3: FLOWER THRIPS & MEALYBUG (The Micros) ---
+    # These are tiny. 
+    # Reject if they take up a huge chunk of the screen (likely a bird/butterfly).
+    if label in ["Flower Thrips", "Mealybug"]:
+        if coverage > 5.0: return False # Impossibly huge
+        return True
+
+    # --- RULE 4: CLUSTERS (The Infestation) ---
+    # Clusters (Ants/Mealybugs) are allowed to be large, but not "Whole Screen" large.
+    if "Cluster" in label:
+        if coverage > 40.0: return False # Likely lighting glitch/wall
+        return True
+
+    # --- RULE 5: ANTS & FLIES (The Small Movers) ---
+    # Weaver Ants and Fruit Flies are small.
+    if label in ["Weaver Ant", "Oriental Fruit Fly"]:
+        if coverage > 10.0: return False # Too big
+        return True
+
+    # --- RULE 6: GRAY BORER & MOTHS (The Flyers) ---
+    # Moths are roughly triangular/square.
+    if label in ["Gray Borer", "Cutworm Moth", "Gray Borer Generic"]:
+        if coverage > 20.0: return False # Too big
+        return True
+
+    return True # Default: Accept if no rules matched
+
 def generate_frames_cam1():
-    global last_detected_pest, is_detection_running, last_annotated_frame, last_confidence
-    camera = get_camera(0)
+    global last_detected_pest, is_detection_running, last_annotated_frame, last_confidence, pest_detection_timeout, ai_result_override
+    
+    # Force initial load
+    camera = get_camera(0) 
 
     while True:
-        # Check if camera is None before calling isOpened
+        # 1. Camera Integrity Check
         if camera is None or not camera.isOpened():
+            print("📷 Camera 0 disconnected. Reconnecting...")
             camera = get_camera(0)
+            time.sleep(2)
             if camera is None or not camera.isOpened():
-                yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 1 ERROR") + b'\r\n')
-                time.sleep(2)
+                yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 1 DISCONNECTED") + b'\r\n')
                 continue
 
+        # 2. Read Frame
         success, frame = camera.read()
         if not success:
+            print("⚠️ Camera 0 read failed. Resetting...")
+            camera.release()
             yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 1 NO SIGNAL") + b'\r\n')
-            time.sleep(0.5)
             continue
         
-        annotated_frame = frame
+        annotated_frame = frame.copy()
         
+        # --- DETECTION LOGIC ---
         if is_detection_running:
-            # --- STEP 1: Run Custom Model (Priority) ---
-            pest_found = False
-            if model:
-                results = model(frame, stream=True, conf=0.50, verbose=False, agnostic_nms=True)
-                
-                best_conf = 0.0
-                best_pest = None
+            # Initialize flags for THIS frame
+            pest_found_in_this_frame = False 
+            best_conf = 0.0
+            best_pest = None
 
+            # --- STEP 1: Run Custom Model (Priority) ---
+            if model:
+                results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
+                
                 for r in results:
                     if len(r.boxes) > 0:
-                        annotated_frame = r.plot()
-                        pest_found = True
                         for box in r.boxes:
                             cls_id = int(box.cls[0].item())
                             conf = float(box.conf[0].item())
-                            label = r.names[cls_id]
+                            raw_label = r.names[cls_id]
+                            
+                            # --- 1. LABEL MAPPING (Combine Classes) ---
+                            label = raw_label # Default
 
-                            if label.lower() in ["negative", "alienated"]:
+                            if raw_label in ["Cutworm Larva", "Cutworm Moth"]:
+                                label = "Cutworm"
+                            elif raw_label in ["Weaver Ant", "Weaver Ant Cluster"]:
+                                label = "Weaver Ant"
+                            elif raw_label in ["Mealybug", "Mealybug Cluster"]:
+                                label = "Mealybug"
+                            elif raw_label == "Gray Borer Generic":
+                                label = "Gray Borer"
+                            
+                            # A. SAFETY NET CHECK (Size/Shape)
+                            x1, y1, x2, y2 = map(int, box.xyxy[0])
+                            w = x2 - x1
+                            h = y2 - y1
+                            
+                            if not is_detection_logical(raw_label, w, h, 640, 480):
+                                continue
+                            
+
+                            # B. High Confidence (Known Pest)
+                            if conf > 0.55:
+                                pest_found_in_this_frame = True
+                                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                                cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1 - 10), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                                
+                                if conf > best_conf:
+                                    best_conf = conf
+                                    best_pest = label
+
+                            # C. Uncertainty Zone (Suspected Unknown)
+                            elif 0.25 < conf <= 0.55:
+                                pest_found_in_this_frame = True
                                 label = "Unknown"
-
-                            if conf > best_conf:
+                                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                                cv2.putText(annotated_frame, f"Unknown {conf:.2f}", (x1, y1 - 10), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                                
+                                best_pest = "Unknown"
                                 best_conf = conf
-                                best_pest = label
-                
-                if pest_found and best_pest:
-                    with frame_lock:
-                        last_annotated_frame = annotated_frame
-                    last_detected_pest = best_pest
-                    last_confidence = best_conf
 
-            # --- STEP 2: Run General Model (If no pest found) ---
-            # --- FIX: Initialize gen_results to avoid unbound variable error ---
-            gen_results = []
-            if not pest_found and general_model:
-                gen_results = general_model(frame, classes=ANIMAL_CLASSES, conf=0.40, verbose=False)
+            # --- STEP 2: Run General Model (ONLY IF NO PEST FOUND) ---
+            # FIXED: We now check 'pest_found_in_this_frame' instead of the undefined 'pest_found'
+            if not pest_found_in_this_frame and general_model:
+                gen_results = general_model(frame, classes=ANIMAL_CLASSES, conf=0.60, verbose=False)
                 for gr in gen_results:
                     if len(gr.boxes) > 0:
-                        annotated_frame = gr.plot()
-                        with frame_lock:
-                            last_annotated_frame = annotated_frame
+                        annotated_frame = gr.plot() # Draw animals
+                        best_pest = "Unknown" # Treat intruders as Unknown
+                        pest_found_in_this_frame = True
                         
-                        last_detected_pest = "Unknown"
                         detected_animal = gr.names[int(gr.boxes[0].cls[0])]
-                        print(f"⚠️ Intruder Detected: {detected_animal} -> Marking as Unknown")
-            
-            # Check if gen_results has content safely
-            if not pest_found and (not general_model or (gen_results and len(gen_results) > 0 and len(gen_results[0].boxes) == 0)):
-                 with frame_lock:
-                    last_annotated_frame = frame
-        else:
-            with frame_lock:
-                last_annotated_frame = frame
+                        print(f"⚠️ Intruder Detected: {detected_animal}")
+                        
+                        # --- THE CRITICAL FIX ---
+            # If the camera detected "Unknown", but we have an AI Override (e.g., "Dog"), use it!
+            if pest_found_in_this_frame and best_pest == "Unknown" and ai_result_override:
+                best_pest = ai_result_override
+                
+                # Optional: Draw the Real Name on screen
+                cv2.putText(annotated_frame, f"AI: {best_pest}", (10, 50), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
+            # --- PERSISTENCE LOGIC (The Memory) ---
+            # If we saw something THIS frame, update the global status AND reset the timer
+            if pest_found_in_this_frame:
+                last_detected_pest = best_pest
+                last_confidence = best_conf
+                pest_detection_timeout = time.time() + 2.0 # Remember for 2 seconds
+            
+            # If we see NOTHING this frame, check if we are still "remembering" the last one
+            else:
+                if time.time() > pest_detection_timeout:
+                    last_detected_pest = "" # Time is up, clear the status
+                    ai_result_override = None
+            
+            # Always update the visual frame reference (No Locks)
+            last_annotated_frame = annotated_frame 
+
+        else:
+            # Detection Stopped
+            last_annotated_frame = frame
+            last_detected_pest = ""
+            ai_result_override = None
+
+        # Encode and Yield
         ret, buffer = cv2.imencode('.jpg', annotated_frame)
         if not ret: continue
-        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n') 
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
 def generate_frames_cam2():
     camera = get_camera(1)
@@ -665,9 +828,14 @@ def api_stop():
 
 @app.route('/api/status')
 def api_status():
-    global last_detected_pest, is_detection_running, is_ai_processing, ai_cooldown_timer
+    global last_detected_pest, is_detection_running, is_ai_processing, ai_cooldown_timer, ai_result_override
     
-    pest_name = last_detected_pest.strip()
+    # 1. Determine Current Name (Prioritize Override)
+    current_name = ""
+    if ai_result_override:
+        current_name = ai_result_override
+    elif last_detected_pest:
+        current_name = last_detected_pest.strip()
     
     response_data = {
         "running": is_detection_running,
@@ -680,96 +848,54 @@ def api_status():
     if not is_detection_running:
         return jsonify(response_data)
 
-    if not pest_name:
-        response_data['status_text'] = "Scanning... (No pests detected)"
+    if not current_name:
+        response_data['status_text'] = "Scanning..."
         return jsonify(response_data)
 
-    # === NEW: THREADED UNKNOWN PROCESSING ===
-    if pest_name == "Unknown":
+    # 2. Handle "Unknown" Status
+    if current_name == "Unknown":
         if is_ai_processing:
-            response_data['status_text'] = "🤖 AI is Analyzing... (Please Wait)"
+            response_data['status_text'] = "🤖 AI is Analyzing..."
             response_data['pest_name'] = "Identifying..."
-            return jsonify(response_data)
-        
-        # Check Cooldown
-        if time.time() < ai_cooldown_timer:
-             response_data['status_text'] = "Unknown Object Detected (Cooldown)"
+        elif time.time() < ai_cooldown_timer:
+             response_data['status_text'] = "Unknown Object (Cooldown)"
              response_data['pest_name'] = "Unknown"
-             return jsonify(response_data)
-
-        # Trigger Background Analysis
-        is_ai_processing = True
-        ai_cooldown_timer = time.time() + AI_COOLDOWN_SECONDS
-        
-        frame_copy = None
-        with frame_lock:
-            if last_annotated_frame is not None:
-                frame_copy = last_annotated_frame.copy()
-        
-        if frame_copy is not None:
-            temp_filename = f"unknown_{int(time.time())}.jpg"
-            temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
-            cv2.imwrite(temp_path, frame_copy)
-            
-            # Start Thread
-            thread = threading.Thread(target=process_unknown_pest_background, args=(temp_path,))
-            thread.daemon = True 
-            thread.start()
-            
-            response_data['status_text'] = "Sending to AI..."
-            response_data['pest_name'] = "Identifying..."
-        
         return jsonify(response_data)
-    # ========================================
 
-    # STANDARD DB LOOKUP
+    # 3. Lookup Details (Native OR Non-Native)
     try:
         conn = get_db()
         cur = conn.cursor()
-        pest_info = None
         
-        # 1. Exact YOLO Name
-        try:
-            cur.execute("SELECT * FROM pests WHERE yolo_name = ? COLLATE NOCASE LIMIT 1", (pest_name,))
-            pest_info = cur.fetchone()
-        except: pass 
-
-        # 2. Common Name
-        if not pest_info:
-            formatted_name = pest_name.replace('-', ' ').replace('_', ' ').title()
-            cur.execute("SELECT * FROM pests WHERE common_name LIKE ? LIMIT 1", (formatted_name,))
-            pest_info = cur.fetchone()
-
-        # 3. Partial Match
-        if not pest_info:
-             cur.execute("SELECT * FROM pests WHERE common_name LIKE ? LIMIT 1", (f"%{pest_name}%",))
-             pest_info = cur.fetchone()
+        # Search by Common Name OR YOLO Name
+        cur.execute("SELECT * FROM pests WHERE common_name = ? OR yolo_name = ? LIMIT 1", (current_name, current_name))
+        pest_info = cur.fetchone()
 
         if pest_info:
             pest_dict = dict(pest_info)
-            display_name = pest_dict.get('common_name', pest_name).strip()
+            display_name = pest_dict.get('common_name', current_name)
             
-            handle_continuous_logging(display_name)
-            
+            # This populates the UI Cards
             response_data.update({
                 "status_text": f"Detected: {display_name}",
                 "pest_name": display_name,
                 "scientific_name": pest_dict.get('scientific_name', 'N/A'),
                 "classification": pest_dict.get('classification', 'N/A'),
-                "cultural": pest_dict.get('cultural_methods', 'N/A'),
-                "biological": pest_dict.get('biological_control', 'N/A'),
-                "sanitation": pest_dict.get('sanitation', 'N/A'),
-                "mechanical": pest_dict.get('mechanical_control', 'N/A'),
-                "chemical": pest_dict.get('chemical_control', 'N/A'),
+                "cultural": pest_dict.get('cultural_methods', '—'),
+                "biological": pest_dict.get('biological_control', '—'),
+                "sanitation": pest_dict.get('sanitation', '—'),
+                "mechanical": pest_dict.get('mechanical_control', '—'),
+                "chemical": pest_dict.get('chemical_control', '—'),
                 "pest_photo": url_for('static', filename=pest_dict.get('image')) if pest_dict.get('image') else None
             })
-            return jsonify(response_data)
+        else:
+            # Name detected (e.g. "Cat") but DB save failed? Show name at least.
+            response_data['status_text'] = f"Detected: {current_name}"
+            response_data['pest_name'] = current_name
             
     except Exception as e:
-        print(f"❌ Database Error: {e}")
+        print(f"Database Error: {e}")
 
-    response_data['status_text'] = f"Detected '{pest_name}' (Not in DB)"
-    response_data['pest_name'] = pest_name
     return jsonify(response_data)
 
 # ================== WEB ROUTES ==================
@@ -855,11 +981,10 @@ def add_pest():
     
     if request.method == 'POST':
         conn = None
-        crop_type = request.form.get('crop_type', '').strip()
         common_name = request.form.get('common_name', '').strip()
         image = request.files.get('image')
 
-        if not crop_type or not common_name or not (image and image.filename):
+        if not common_name or not (image and image.filename):
             flash("Please ensure required fields and an image are selected.", "danger")
             return render_template('add_pest.html')
 
@@ -873,15 +998,17 @@ def add_pest():
             conn = sqlite3.connect(pest_db)
             c = conn.cursor()
             
-            c.execute('''INSERT INTO pests (crop, common_name, scientific_name, order_name, family, classification,
+            c.execute('''INSERT INTO pests (type, common_name, scientific_name, order_name, family, classification,
                         cultural_methods, biological_control, sanitation, mechanical_control, chemical_control, image, yolo_name)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                        (crop_type, common_name, request.form.get('scientific_name', ''), 
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
+                        "Native Species",
+                        (common_name, request.form.get('scientific_name', ''), 
                          request.form.get('order_name', ''), request.form.get('family', ''), 
                          request.form.get('classification', ''),
                          request.form.get('cultural_methods', ''), request.form.get('biological_control', ''), 
                          request.form.get('sanitation', ''), request.form.get('mechanical_control', ''), 
-                         request.form.get('chemical_control', ''), image_filename_to_save, common_name))
+                         request.form.get('chemical_control', ''), image_filename_to_save, common_name)
+            ))
             conn.commit()
             flash("Pest successfully registered!", "success")
             return redirect(url_for('pest_list'))
@@ -956,12 +1083,12 @@ def update_pests():
             try:
                 cur.execute("""
                     UPDATE pests
-                    SET crop = ?, common_name = ?, scientific_name = ?, order_name = ?, family = ?, 
+                    SET type = ?, common_name = ?, scientific_name = ?, order_name = ?, family = ?, 
                         classification = ?, cultural_methods = ?, biological_control = ?, sanitation = ?, 
                         mechanical_control = ?, chemical_control = ?
                     WHERE id = ?
                 """, (
-                    pest.get('crop'), pest.get('common_name'), pest.get('scientific_name'), pest.get('order_name'),
+                    pest.get('type'), pest.get('common_name'), pest.get('scientific_name'), pest.get('order_name'),
                     pest.get('family'), pest.get('classification'), pest.get('cultural_methods'), pest.get('biological_control'),
                     pest.get('sanitation'), pest.get('mechanical_control'), pest.get('chemical_control'),
                     pest.get('id')
@@ -1039,52 +1166,140 @@ def pest_list():
 @app.route('/upload', methods=['GET', 'POST'])
 @restrict_url_access
 def upload():
+    # FIX 1: Initialize image_url safely at the top
+    image_url = None 
+
     if request.method == 'POST':
         file = request.files.get('file')
-        image_url = None
         
         if not file or not file.filename:
-            flash("No file selected for uploading.", "danger")
+            flash("No file selected.", "danger")
             return redirect(request.url)
 
         try:
+            # FIX 2: Use global UPLOAD_FOLDER (Removes the KeyError crash)
             filename = secure_filename(str(file.filename)) 
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            filepath = os.path.join(UPLOAD_FOLDER, filename) 
             file.save(filepath)
+            
             image_url = url_for('static', filename='uploads/' + filename)
             
+            # --- DETECTION PIPELINE ---
+            detected_name = None
+            
+            # Get Image Dimensions for Logic Checks
+            img = cv2.imread(filepath)
+            if img is not None:
+                img_h, img_w, _ = img.shape
+            else:
+                img_h, img_w = 480, 640 # Fallback
+
+            # Step A: Run Custom Model (Pineapple Pests)
             if model:
-                results = model(filepath)
-                if results and len(results) > 0 and results[0].boxes and len(results[0].boxes.cls) > 0:
+                results = model(filepath, conf=0.25)
+                if results and len(results) > 0 and results[0].boxes:
+                    # Find highest confidence detection
                     best_conf_index = results[0].boxes.conf.argmax()
                     class_index = int(results[0].boxes.cls[best_conf_index].item())
-                    detected_pest_name = results[0].names[class_index]
+                    raw_label = results[0].names[class_index]
+                    conf = float(results[0].boxes.conf[best_conf_index].item())
                     
-                    if detected_pest_name.lower() in ["negative", "alienated"]:
-                        # For uploads, we can optionally add the AI lookup here too if you want,
-                        # but keeping it simple for now as per your original code.
-                        flash("Unknown pest detected. (Manual Upload AI analysis not yet enabled)", "warning")
-                    else:
-                        processed_name = detected_pest_name.strip().replace('-', ' ').replace('_', ' ').title()
-                        conn = get_db() 
-                        pest_info = conn.execute(
-                            "SELECT * FROM pests WHERE common_name = ? COLLATE NOCASE",
-                            (processed_name,)
-                        ).fetchone()
+                    # FIX 3: Label Mapping (Combine Classes)
+                    label = raw_label
+                    if raw_label in ["Cutworm Larva", "Cutworm Moth"]: label = "Cutworm"
+                    elif raw_label in ["Weaver Ant", "Weaver Ant Cluster"]: label = "Weaver Ant"
+                    elif raw_label in ["Mealybug", "Mealybug Cluster"]: label = "Mealybug"
+                    elif raw_label == "Gray Borer Generic": label = "Gray Borer"
 
-                        if pest_info:
-                            return render_template('pest_upload.html', pest=pest_info, image_url=image_url)
-                        else:
-                            flash(f"Pest '{detected_pest_name}' detected, but no DB info found.", "warning")
+                    # FIX 4: Safety Nets (Filter False Positives)
+                    # Use raw_label to check specific physics (e.g., is the 'Moth' actually square?)
+                    box = results[0].boxes.xyxy[best_conf_index].tolist()
+                    x1, y1, x2, y2 = box
+                    box_w = x2 - x1
+                    box_h = y2 - y1
+                    
+                    if is_detection_logical(raw_label, box_w, box_h, img_w, img_h):
+                        if conf > 0.55:
+                            detected_name = label
+                        elif 0.25 < conf <= 0.55:
+                            detected_name = "Unknown"
+                    else:
+                        print(f"🚫 Upload: Ignored Logical Fail for {label} ({conf:.2f})")
+                        # If physics fail (e.g., Beetle looks like a Moth but wrong shape), 
+                        # we reject YOLO and fall back to Gemini AI.
+                        detected_name = None 
+
+            # Step B: Run General Model (Intruders) if nothing valid found
+            if (not detected_name or detected_name == "Unknown") and general_model:
+                gen_results = general_model(filepath, classes=ANIMAL_CLASSES, conf=0.60)
+                if gen_results and len(gen_results) > 0 and gen_results[0].boxes:
+                    detected_name = "Unknown" 
+
+            # Step C: AI Fallback (Gemini)
+            # This catches the False Positives (like the Beetle) that YOLO missed/hallucinated
+            if detected_name == "Unknown" or detected_name is None:
+                print("⚡ Triggering AI Analysis for Upload...")
+                ai_data = fetch_pest_info_from_ai("Unknown", image_path=filepath)
+                
+                if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None]:
+                    detected_name = ai_data.get('common_name')
+                    
+                    # Save to DB
+                    with db_lock:
+                        conn = get_db()
+                        c = conn.cursor()
+                        c.execute("SELECT id FROM pests WHERE common_name = ?", (detected_name,))
+                        if not c.fetchone():
+                            db_image_path = f"uploads/{filename}"
+                            c.execute('''INSERT INTO pests (type, 
+                                common_name, scientific_name, order_name, family, classification,
+                                cultural_methods, biological_control, sanitation, mechanical_control, chemical_control, image, yolo_name
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
+                                "Non-Native Species", detected_name, 
+                                ai_data.get('scientific_name', 'N/A'), ai_data.get('order_name', 'N/A'), 
+                                ai_data.get('family', 'N/A'), ai_data.get('classification', 'Non-Native/Intruder'), 
+                                ai_data.get('cultural_methods', '—'), ai_data.get('biological_control', '—'), 
+                                ai_data.get('sanitation', '—'), ai_data.get('mechanical_control', '—'), 
+                                ai_data.get('chemical_control', '—'), db_image_path, detected_name
+                            ))
+                            conn.commit()
                 else:
-                    flash("No pest was detected in the uploaded image.", "info")
+                    flash("AI could not identify the subject.", "warning")
+                    return render_template('pest_upload.html', image_url=image_url)
+
+            # --- DISPLAY RESULTS ---
+            if detected_name:
+                formatted_name = detected_name.strip()
+                log_detection_event(formatted_name, f"uploads/{filename}", "Manual Upload")
+                conn = get_db()
+                pest_info = conn.execute(
+                    "SELECT * FROM pests WHERE common_name = ? COLLATE NOCASE OR yolo_name = ? COLLATE NOCASE",
+                    (formatted_name, formatted_name)
+                ).fetchone()
+
+                if pest_info:
+                    return render_template('pest_upload.html', pest=pest_info, image_url=image_url)
+                else:
+                    # Fallback dummy object
+                    dummy_pest = {
+                        "common_name": formatted_name,
+                        "scientific_name": "Identified by AI",
+                        "classification": "Non-Native/Intruder",
+                        "cultural_methods": "—", "biological_control": "—",
+                        "sanitation": "—", "mechanical_control": "—", "chemical_control": "—"
+                    }
+                    flash(f"Identified: {formatted_name}", "success")
+                    return render_template('pest_upload.html', pest=dummy_pest, image_url=image_url)
+            
+            flash("No identifiable pest found.", "info")
             return render_template('pest_upload.html', image_url=image_url)
                 
         except Exception as e:
-            flash(f"An unexpected error occurred: {e}", "danger")
+            print(f"Upload Error: {e}")
+            flash(f"Error processing image: {e}", "danger")
             return render_template('pest_upload.html', image_url=image_url)
             
-    return render_template('pest_upload.html')
+    return render_template('pest_upload.html', image_url=image_url)
 
 @app.route('/library')
 @restrict_url_access

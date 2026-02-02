@@ -4,12 +4,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome | AI Pest Detection</title>
-  
+  <title>Welcome | Pinepestify Insect Detection</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
+
   <style>
     :root {
       --primary: #2e7d32;
@@ -24,7 +26,9 @@
     }
 
     /* Global Reset */
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       font-family: "Inter", sans-serif;
@@ -39,7 +43,8 @@
 
     .welcome-card {
       background: var(--card-bg);
-      border-radius: 16px; /* Slightly rounder for welcome feel */
+      border-radius: 16px;
+      /* Slightly rounder for welcome feel */
       box-shadow: var(--shadow);
       padding: 60px 40px;
       text-align: center;
@@ -60,7 +65,8 @@
 
     h1 span {
       color: var(--primary);
-      display: block; /* Forces new line for emphasis */
+      display: block;
+      /* Forces new line for emphasis */
       font-size: 2.5rem;
     }
 
@@ -90,7 +96,7 @@
       font-size: 1.1rem;
       transition: all 0.2s ease;
       letter-spacing: 0.5px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     /* Admin Button Style */
@@ -123,13 +129,14 @@
 
     /* Animations */
     @keyframes fadeInUp {
-      from { 
-        opacity: 0; 
-        transform: translateY(30px) scale(0.95); 
+      from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
       }
-      to { 
-        opacity: 1; 
-        transform: translateY(0) scale(1); 
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
     }
 
@@ -139,11 +146,17 @@
         padding: 40px 25px;
       }
 
-      h1 { font-size: 1.8rem; }
-      h1 span { font-size: 2rem; }
+      h1 {
+        font-size: 1.8rem;
+      }
+
+      h1 span {
+        font-size: 2rem;
+      }
 
       .button-group {
-        grid-template-columns: 1fr; /* Stack buttons vertically */
+        grid-template-columns: 1fr;
+        /* Stack buttons vertically */
         gap: 15px;
       }
 
@@ -156,11 +169,11 @@
 </head>
 
 <body>
-  
+
   <div class="welcome-card">
-    <h1>Welcome to <span>AI Pest Detection</span></h1>
+    <h1>Welcome to <span>Pinepestify Insect Detection</span></h1>
     <p>Please select your access level to continue</p>
-    
+
     <div class="button-group">
       <a href="/login" class="btn btn-admin">ADMIN</a>
       <a href="/user" class="btn btn-user">USER</a>
@@ -168,4 +181,5 @@
   </div>
 
 </body>
+
 </html>
