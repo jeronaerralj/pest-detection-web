@@ -502,15 +502,15 @@ except:
     model = None
 
 # 2. General Model (The "Double Agent" for Birds/Animals)
-try:
-    general_model = YOLO('yolov8n.pt')
-    print("✅ General Model Loaded (for Intruder Detection)")
-except Exception as e:
-    print(f"⚠️ General model failed to load: {e}")
-    general_model = None
+#try:
+#    general_model = YOLO('yolov8n.pt')
+#   print("✅ General Model Loaded (for Intruder Detection)")
+#except Exception as e:
+#    print(f"⚠️ General model failed to load: {e}")
+#    general_model = None
 
 # COCO Dataset IDs for animals we want to treat as "Unknown/Intruders"
-ANIMAL_CLASSES = [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+# ANIMAL_CLASSES = [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
 
 # ================== LOGGING & CAMERA ==================
 def log_detection_event(pest_name, image_path, detection_type):
@@ -719,16 +719,16 @@ def generate_frames_cam1():
 
             # --- STEP 2: Run General Model (ONLY IF NO PEST FOUND) ---
             # FIXED: We now check 'pest_found_in_this_frame' instead of the undefined 'pest_found'
-            if not pest_found_in_this_frame and general_model:
-                gen_results = general_model(frame, classes=ANIMAL_CLASSES, conf=0.60, verbose=False)
-                for gr in gen_results:
-                    if len(gr.boxes) > 0:
-                        annotated_frame = gr.plot() # Draw animals
-                        best_pest = "Unknown" # Treat intruders as Unknown
-                        pest_found_in_this_frame = True
+            #if not pest_found_in_this_frame and general_model:
+                #gen_results = general_model(frame, classes=ANIMAL_CLASSES, conf=0.60, verbose=False)
+               # for gr in gen_results:
+                    #if len(gr.boxes) > 0:
+                        #annotated_frame = gr.plot() # Draw animals
+                        #best_pest = "Unknown" # Treat intruders as Unknown
+                        #pest_found_in_this_frame = True
                         
-                        detected_animal = gr.names[int(gr.boxes[0].cls[0])]
-                        print(f"⚠️ Intruder Detected: {detected_animal}")
+                        #detected_animal = gr.names[int(gr.boxes[0].cls[0])]
+                        #print(f"⚠️ Intruder Detected: {detected_animal}")
                         
                         # --- THE CRITICAL FIX ---
             # If the camera detected "Unknown", but we have an AI Override (e.g., "Dog"), use it!
@@ -1230,10 +1230,10 @@ def upload():
                         detected_name = None 
 
             # Step B: Run General Model (Intruders) if nothing valid found
-            if (not detected_name or detected_name == "Unknown") and general_model:
-                gen_results = general_model(filepath, classes=ANIMAL_CLASSES, conf=0.60)
-                if gen_results and len(gen_results) > 0 and gen_results[0].boxes:
-                    detected_name = "Unknown" 
+            #if (not detected_name or detected_name == "Unknown") and general_model:
+                #gen_results = general_model(filepath, classes=ANIMAL_CLASSES, conf=0.60)
+                #if gen_results and len(gen_results) > 0 and gen_results[0].boxes:
+                    #detected_name = "Unknown" 
 
             # Step C: AI Fallback (Gemini)
             # This catches the False Positives (like the Beetle) that YOLO missed/hallucinated
