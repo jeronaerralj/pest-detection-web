@@ -54,6 +54,8 @@ last_annotated_frame = None
 last_confidence = 0.0
 last_logged_pest = None 
 ai_result_override = None
+last_ai_request_time = 0
+AI_DEBOUNCE_SECONDS = 5
 
 # AI Threading State
 is_ai_processing = False
@@ -631,7 +633,7 @@ def is_detection_logical(label, box_w, box_h, frame_w, frame_h):
     return True # Default: Accept if no rules matched
 
 def generate_frames_cam1():
-    global last_detected_pest, is_detection_running, last_annotated_frame, last_confidence, pest_detection_timeout, ai_result_override
+    global last_detected_pest, is_detection_running, last_annotated_frame, last_confidence, pest_detection_timeout, ai_result_override, is_ai_processing, last_ai_request_time
     
     # Force initial load
     camera = get_camera(0) 
@@ -709,13 +711,29 @@ def generate_frames_cam1():
                             # C. Uncertainty Zone (Suspected Unknown)
                             elif 0.25 < conf <= 0.55:
                                 pest_found_in_this_frame = True
-                                label = "Unknown"
+                                # Check if we already have a recent AI identification for this "Unknown"
+                                if ai_result_override:
+                                    label = ai_result_override
+                                    best_pest = ai_result_override
+                                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2) # Turn Green
+                                else:
+                                    label = "Identifying..."
+                                    best_pest = "Unknown"
+                                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 0, 255), 2) # Stay Red
+                                    
+                                    # Trigger AI only if not already processing and debounce is over
+                                    current_time = time.time()
+                                    if not is_ai_processing and (current_time - last_ai_request_time > AI_DEBOUNCE_SECONDS):
+                                        is_ai_processing = True
+                                        last_ai_request_time = current_time
+                                        threading.Thread(target=start_ai_analysis_thread, args=(frame.copy(),)).start()                       
+                            
                                 cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                                 cv2.putText(annotated_frame, f"Unknown {conf:.2f}", (x1, y1 - 10), 
                                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
                                 
-                                best_pest = "Unknown"
-                                best_conf = conf
+                                if not ai_result_override:
+                                    best_conf = conf
 
             # --- STEP 2: Run General Model (ONLY IF NO PEST FOUND) ---
             # FIXED: We now check 'pest_found_in_this_frame' instead of the undefined 'pest_found'
@@ -744,7 +762,9 @@ def generate_frames_cam1():
             if pest_found_in_this_frame:
                 last_detected_pest = best_pest
                 last_confidence = best_conf
-                pest_detection_timeout = time.time() + 2.0 # Remember for 2 seconds
+                timeout_duration = 5.0 if ai_result_override else 2.0
+                pest_detection_timeout = time.time() + timeout_duration
+                #pest_detection_timeout = time.time() + 2.0 # Remember for 2 seconds
             
             # If we see NOTHING this frame, check if we are still "remembering" the last one
             else:
