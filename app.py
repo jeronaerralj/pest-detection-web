@@ -1350,7 +1350,7 @@ def detection_history():
     except Exception as e:
         print(f"Error loading history: {e}")
         flash("Could not load detection history.", "danger")
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('user_page'))
     finally:
         if conn: conn.close()
 
