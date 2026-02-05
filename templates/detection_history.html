@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>PINEPESTIFY | Detection History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        :root {
+            --primary-green: #2e7d32;
+            --accent-blue: #0277bd;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-container {
+            padding: 2rem;
+            background: #f0f4f0;
+            min-height: 100vh;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 3px solid var(--primary-green);
+            padding-bottom: 1rem;
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .history-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .history-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-image {
+            position: relative;
+            height: 200px;
+        }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .manual-upload {
+            background: var(--accent-blue);
+        }
+
+        .continuous-feed {
+            background: var(--primary-green);
+        }
+
+        .card-details {
+            padding: 1.2rem;
+        }
+
+        .time-stamp {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-details h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+        }
+
+        .btn-view-pest {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #e8f5e9;
+            color: var(--primary-green);
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-view-pest:hover {
+            background: var(--primary-green);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    {% extends "layout.html" %}
+    {% block content %}
+    <div class="history-container">
+        <header class="history-header">
+            <h1><i class="fas fa-history"></i> Detection Logs</h1>
+            <div class="stats-bar">
+                <span>Total Detections: <strong>{{ logs|length }}</strong></span>
+                <button class="btn-filter" onclick="toggleFilters()"><i class="fas fa-filter"></i> Filter</button>
+            </div>
+        </header>
+
+        <div class="history-grid">
+            {% for log in logs %}
+            <div class="history-card" data-type="{{ log.detection_type }}">
+                <div class="card-image">
+                    <img src="{{ url_for('static', filename=log.image_path) }}" alt="Pest Capture">
+                    <span class="badge {{ log.detection_type|lower|replace(' ', '-') }}">
+                        {{ log.detection_type }}
+                    </span>
+                </div>
+                <div class="card-details">
+                    <div class="time-stamp">
+                        <i class="far fa-clock"></i> {{ log.timestamp }}
+                    </div>
+                    <h3>{{ log.yolo_name }}</h3>
+                    <div class="meta-info">
+                        <span><i class="fas fa-user-shield"></i> {{ log.user_session }}</span>
+                    </div>
+                    <button class="btn-view-pest" onclick="showPestDetails('{{ log.yolo_name }}')">
+                        View Details
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endblock %}
+</body>
+
+</html>

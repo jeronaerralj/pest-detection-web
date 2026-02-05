@@ -1334,6 +1334,25 @@ def pest_library():
         return render_template('pest_library.html', pests=pests)
     except Exception:
         return redirect(url_for('home'))
+    
+@app.route('/history')
+def detection_history():
+    conn = None
+    try:
+        pest_db = os.path.join(DB_DIR, 'pests_add.db')
+        conn = sqlite3.connect(pest_db)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        # Fetch latest detections first
+        cur.execute("SELECT * FROM history ORDER BY timestamp DESC LIMIT 50")
+        history_logs = cur.fetchall()
+        return render_template('detection_history.html', logs=history_logs)
+    except Exception as e:
+        print(f"Error loading history: {e}")
+        flash("Could not load detection history.", "danger")
+        return redirect(url_for('admin_dashboard'))
+    finally:
+        if conn: conn.close()
 
 @app.route('/user')
 def user_page(): return render_template('user.html') 
