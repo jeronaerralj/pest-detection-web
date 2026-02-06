@@ -56,6 +56,7 @@ last_logged_pest = None
 ai_result_override = None
 last_ai_request_time = 0
 AI_DEBOUNCE_SECONDS = 5
+last_ai_data_cache = None
 
 # AI Threading State
 is_ai_processing = False
@@ -362,12 +363,12 @@ def start_ai_analysis_thread(frame_image):
         is_ai_processing = False # Reset flag if it crashes
 
 def process_unknown_pest_background(image_path):
-    """Background thread function to handle AI analysis."""
-    global is_ai_processing, last_detected_pest, ai_result_override 
+    """Background thread function to handle AI analysis and database learning."""
+    global is_ai_processing, last_detected_pest, ai_result_override, last_ai_data_cache 
     
     print("🚀 Background Thread Started: Analyzing Unknown Pest...")
     try:
-        # 1. Attempt AI Identification
+        # 1. Attempt Gemini/AI Identification
         ai_data = fetch_pest_info_from_ai("Unknown", image_path=image_path)
 
         # 2. Validate AI Response
@@ -375,58 +376,51 @@ def process_unknown_pest_background(image_path):
             identified_name = ai_data.get('common_name').strip()
             print(f"✅ AI Identified: {identified_name}")
 
-            # 3. Save to Database (With Retry/Timeout)
+            # Update Session Cache
+            last_ai_data_cache = ai_data
+
+            # 3. PERMANENT MEMORY: Save to Database
+            # This makes the species "Known" for Step 2 of api_status
             try:
                 with db_lock:
-                    # Timeout=30 prevents "Database Locked" errors
                     conn = sqlite3.connect(DATABASE, timeout=30) 
                     c = conn.cursor()
                     
                     filename = os.path.basename(image_path)
                     db_image_path = f"uploads/{filename}"
                     
-                    # Check if exists
+                    # Check if it already exists to avoid duplicates
                     c.execute("SELECT id FROM pests WHERE common_name = ?", (identified_name,))
                     if not c.fetchone():
-                        # Use .get() with defaults to prevent crashes if AI misses a field
                         c.execute('''INSERT INTO pests (type, 
                             common_name, scientific_name, order_name, family, classification,
                             cultural_methods, biological_control, sanitation, mechanical_control, chemical_control, image, yolo_name
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
-                            "Non-Native Species", 
-                            identified_name, 
-                            ai_data.get('scientific_name', 'N/A'), 
-                            ai_data.get('order_name', 'N/A'), 
-                            ai_data.get('family', 'N/A'), 
-                            ai_data.get('classification', 'Non-Native/Intruder'), 
-                            ai_data.get('cultural_methods', 'Monitor presence.'), 
-                            ai_data.get('biological_control', 'None recommended.'), 
-                            ai_data.get('sanitation', 'Keep area clean.'), 
-                            ai_data.get('mechanical_control', 'Physical removal if necessary.'), 
-                            ai_data.get('chemical_control', 'None recommended.'), 
-                            db_image_path,
-                            identified_name 
+                            "Non-Native Species", identified_name, 
+                            ai_data.get('scientific_name', 'N/A'), ai_data.get('order_name', 'N/A'), 
+                            ai_data.get('family', 'N/A'), ai_data.get('classification', 'Non-Native/Intruder'), 
+                            ai_data.get('cultural_methods', '—'), ai_data.get('biological_control', '—'), 
+                            ai_data.get('sanitation', '—'), ai_data.get('mechanical_control', '—'), 
+                            ai_data.get('chemical_control', '—'), db_image_path, identified_name 
                         ))
                         conn.commit()
-                        print(f"💾 Saved '{identified_name}' to Database.")
+                        print(f"💾 Saved '{identified_name}' to Database for future lookup.")
                     conn.close()
             except Exception as db_e:
-                print(f"⚠️ Database Save Failed (Showing Name Only): {db_e}")
+                print(f"⚠️ Database Save Failed: {db_e}")
 
-            # 4. CRITICAL: Set the Override so Camera shows the Name
+            # 4. Update UI Override
             ai_result_override = identified_name
             last_detected_pest = identified_name
             
         else:
-            print("❌ AI Identification Failed (Returned N/A or None).")
-            # Optional: Set a fallback message so UI knows it failed
+            print("❌ AI Identification Failed.")
             ai_result_override = "Unidentified Object"
-            last_detected_pest = "Unidentified Object"
             
     except Exception as e:
         print(f"❌ Critical Background Error: {e}")
     finally:
-        is_ai_processing = False  # Release lock so it can try again later
+        is_ai_processing = False
 
 # ================== DB INIT & PATCHING ==================
 def init_databases():
@@ -848,9 +842,10 @@ def api_stop():
 
 @app.route('/api/status')
 def api_status():
-    global last_detected_pest, is_detection_running, is_ai_processing, ai_cooldown_timer, ai_result_override
+    global last_detected_pest, is_detection_running, is_ai_processing, \
+           ai_cooldown_timer, ai_result_override, last_ai_data_cache
     
-    # 1. Determine Current Name (Prioritize Override)
+    # 1. Determine Current Name (Prioritize Override from Gemini)
     current_name = ""
     if ai_result_override:
         current_name = ai_result_override
@@ -869,33 +864,21 @@ def api_status():
         return jsonify(response_data)
 
     if not current_name:
-        response_data['status_text'] = "Scanning..."
         return jsonify(response_data)
 
-    # 2. Handle "Unknown" Status
-    if current_name == "Unknown":
-        if is_ai_processing:
-            response_data['status_text'] = "🤖 AI is Analyzing..."
-            response_data['pest_name'] = "Identifying..."
-        elif time.time() < ai_cooldown_timer:
-             response_data['status_text'] = "Unknown Object (Cooldown)"
-             response_data['pest_name'] = "Unknown"
-        return jsonify(response_data)
-
-    # 3. Lookup Details (Native OR Non-Native)
+    # 2. Priority 1: LOCAL DATABASE LOOKUP
+    # This automatically pulls details if the species is in your pests_add.db
     try:
         conn = get_db()
         cur = conn.cursor()
-        
-        # Search by Common Name OR YOLO Name
-        cur.execute("SELECT * FROM pests WHERE common_name = ? OR yolo_name = ? LIMIT 1", (current_name, current_name))
+        cur.execute("SELECT * FROM pests WHERE common_name = ? OR yolo_name = ? LIMIT 1", 
+                    (current_name, current_name))
         pest_info = cur.fetchone()
 
         if pest_info:
             pest_dict = dict(pest_info)
             display_name = pest_dict.get('common_name', current_name)
             
-            # This populates the UI Cards
             response_data.update({
                 "status_text": f"Detected: {display_name}",
                 "pest_name": display_name,
@@ -908,14 +891,24 @@ def api_status():
                 "chemical": pest_dict.get('chemical_control', '—'),
                 "pest_photo": url_for('static', filename=pest_dict.get('image')) if pest_dict.get('image') else None
             })
-        else:
-            # Name detected (e.g. "Cat") but DB save failed? Show name at least.
-            response_data['status_text'] = f"Detected: {current_name}"
-            response_data['pest_name'] = current_name
-            
+            return jsonify(response_data)
     except Exception as e:
         print(f"Database Error: {e}")
 
+    # 3. Priority 2: SESSION CACHE (If "Unknown" but previously identified)
+    if current_name == "Unknown":
+        if is_ai_processing:
+            response_data.update({"status_text": "🤖 AI is Analyzing...", "pest_name": "Identifying..."})
+        elif last_ai_data_cache:
+            # Re-use the last Gemini result for the current session
+            response_data.update({
+                "status_text": f"AI Identified: {last_ai_data_cache['common_name']}",
+                "pest_name": last_ai_data_cache['common_name'],
+                "scientific_name": last_ai_data_cache.get('scientific_name', 'N/A')
+            })
+        else:
+            response_data['status_text'] = "Unknown Object Detected"
+            
     return jsonify(response_data)
 
 # ================== WEB ROUTES ==================
