@@ -103,7 +103,7 @@ def close_db(error):
     if db is not None:
         db.close()
 
-# --- UPDATED: STRICT URL ACCESS RESTRICTION ---
+# --- STRICT URL ACCESS RESTRICTION ---
 def restrict_url_access(f):
     """
     Blocks Direct URL Access (Copy-Paste / Bookmarks).
@@ -129,7 +129,7 @@ def restrict_url_access(f):
             '/update_pests',
             '/register',
             '/pest_list',
-            '/login',  # Allow from login page after successful login
+            '/login',
             '/user',
             '/index',
             '/upload',
@@ -189,7 +189,6 @@ def login_required(f):
 # ================== AI LOGIC (THREADED) ==================
 
 def fetch_pest_info_from_ai(pest_name, image_path=None):
-    # Data structure we expect back
     json_structure = {
         "type": "Non-Native Species",
         "common_name": "Standard Name",
@@ -235,7 +234,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 for model_name in gemini_candidates:
                     try:
                         print(f"   ...Trying Gemini: {model_name}")
-                        model = genai.GenerativeModel(model_name) # type: ignore
+                        model = genai.GenerativeModel(model_name)
                         response = model.generate_content([vision_prompt, img])
                         return json.loads(clean_json_text(response.text))
                     except Exception as e:
@@ -271,7 +270,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                     temperature=0,
                 )
 
-                # --- FIX: Check content existence before processing ---
+                # --- Check content existence before processing ---
                 content = response.choices[0].message.content
                 if content:
                     return json.loads(clean_json_text(content))
@@ -325,7 +324,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 temperature=0,
                 response_format={"type": "json_object"} 
             )
-            # --- FIX: Safe check for Groq Content ---
+            # --- Safe check for Groq Content ---
             content = chat_completion.choices[0].message.content
             if content:
                 return json.loads(clean_json_text(content))
@@ -340,18 +339,15 @@ def start_ai_analysis_thread(frame_image):
     so the main thread (and camera) never freezes.
     """
     try:
-        # 1. Save File (This was likely causing the freeze)
         temp_filename = f"unknown_{int(time.time())}.jpg"
         temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
         cv2.imwrite(temp_path, frame_image)
-        
-        # 2. Call the existing analysis logic
         process_unknown_pest_background(temp_path)
         
     except Exception as e:
         print(f"❌ Thread Start Error: {e}")
         global is_ai_processing
-        is_ai_processing = False # Reset flag if it crashes
+        is_ai_processing = False
 
 def process_unknown_pest_background(image_path):
     """Background thread function to handle AI analysis and database learning."""
@@ -370,8 +366,7 @@ def process_unknown_pest_background(image_path):
             # Update Session Cache
             last_ai_data_cache = ai_data
 
-            # 3. PERMANENT MEMORY: Save to Database
-            # This makes the species "Known" for Step 2 of api_status
+            # 3. Save to Database
             try:
                 with db_lock:
                     conn = sqlite3.connect(DATABASE, timeout=30) 
@@ -480,7 +475,6 @@ def patch_database_schema():
 patch_database_schema()
 
 # --- MODELS ---
-# 1. Custom Pest Model
 try:
     model = YOLO('native.pt')
     print("✅ Custom Pest Model Loaded")
@@ -488,19 +482,8 @@ except:
     print("⚠️ WARNING: datapest.pt not found. Detection will fail.")
     model = None
 
-# 2. General Model (The "Double Agent" for Birds/Animals)
-#try:
-#    general_model = YOLO('yolov8n.pt')
-#   print("✅ General Model Loaded (for Intruder Detection)")
-#except Exception as e:
-#    print(f"⚠️ General model failed to load: {e}")
-#    general_model = None
-
-# COCO Dataset IDs for animals we want to treat as "Unknown/Intruders"
-# ANIMAL_CLASSES = [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
-
 # ================== LOGGING & CAMERA ==================
-def log_detection_event(pest_name, image_path, detection_type):
+def log_detection_event(pest_name, image_path, detection_type, camera_id="CAM 1"):
     with db_lock:
         try:
             conn = sqlite3.connect(DATABASE, timeout=10)
@@ -513,7 +496,7 @@ def log_detection_event(pest_name, image_path, detection_type):
             conn.execute("""
                 INSERT INTO history (timestamp, yolo_name, image_path, user_session, detection_type)
                 VALUES (?, ?, ?, ?, ?)
-            """, (current_time, pest_name, image_path, user, detection_type))
+            """, (current_time, f"[{camera_id}] {pest_name}", image_path, user, detection_type))
             conn.commit()
             conn.close()
         except Exception as e:
@@ -523,17 +506,14 @@ def handle_continuous_logging(pest_name):
     global last_logged_pest, last_annotated_frame
     
     if pest_name and pest_name != last_logged_pest:
-        # NO LOCKS. Just grab the reference.
         current_ref = last_annotated_frame
         
         if current_ref is not None:
             try:
-                frame_copy = current_ref.copy() # Snapshot
-                
+                frame_copy = current_ref.copy()
                 safe_name = secure_filename(f"{pest_name}_{int(time.time())}.jpg")
                 save_path = os.path.join(STATIC_FOLDER, 'history', safe_name)
                 
-                # Write to disk
                 cv2.imwrite(save_path, frame_copy)
                 
                 db_path = f"history/{safe_name}"
@@ -544,13 +524,12 @@ def handle_continuous_logging(pest_name):
             except Exception as e:
                 print(f"Error continuous logging: {e}")   
 
-# --- FIX: Explicit Type Hinting to prevent Pylance errors ---
+# --- Explicit Type Hinting to prevent Pylance errors ---
 cams: dict[int, cv2.VideoCapture | None] = {0: None, 1: None, 2: None}
 
 def get_camera(index):
     global cams
-    # We add 'type: ignore' here because Pylance struggles to see that 'or' prevents access on None
-    if cams[index] is None or not cams[index].isOpened(): # type: ignore
+    if cams[index] is None or not cams[index].isOpened():
         cams[index] = cv2.VideoCapture(index) 
     return cams[index]
 
@@ -571,14 +550,11 @@ def is_detection_logical(label, box_w, box_h, frame_w, frame_h):
     coverage = (area / screen_area) * 100
     
     # Aspect Ratio (Long vs. Square)
-    # Ratio of 1.0 = Perfect Square. Ratio of 3.0 = Long Rectangle.
     short_side = min(box_w, box_h)
     long_side = max(box_w, box_h)
     ratio = long_side / short_side if short_side > 0 else 0
 
-    # --- RULE 1: RHINOCEROS BEETLE (The Giant) ---
-    # Must be chunky and large.
-    # Reject if it's a tiny speck (likely a fly in the distance).
+    # --- RULE 1: RHINOCEROS BEETLE ---
     if label == "Rhinoceros Beetle":
         if coverage < 1.5: return False # Too small
         return True
@@ -617,192 +593,96 @@ def is_detection_logical(label, box_w, box_h, frame_w, frame_h):
 
     return True # Default: Accept if no rules matched
 
-def generate_frames_cam1():
-    global last_detected_pest, is_detection_running, last_annotated_frame, last_confidence, pest_detection_timeout, ai_result_override, is_ai_processing, last_ai_request_time
+def process_camera_frame(frame, cam_id):
+    global last_detected_pest, last_confidence, pest_detection_timeout, \
+           ai_result_override, is_ai_processing, last_ai_request_time
+
+    annotated_frame = frame.copy()
+    pest_found_in_this_frame = False
+    best_conf = 0.0
+    best_pest = None
+
+    if model:
+        # Run YOLO inference
+        results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
+        
+        for r in results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0].item())
+                conf = float(box.conf[0].item())
+                raw_label = r.names[cls_id]
+                
+                # Apply your mapping (e.g., merging clusters or life stages)
+                label = raw_label
+                if "Cutworm" in raw_label: label = "Cutworm"
+                elif "Weaver Ant" in raw_label: label = "Weaver Ant"
+                
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
+                    continue
+
+                # Logical Identification
+                if conf > 0.55:
+                    pest_found_in_this_frame = True
+                    best_conf, best_pest = conf, label
+                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1-10), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                
+                elif 0.25 < conf <= 0.55:
+                    pest_found_in_this_frame = True
+                    # Check if Gemini already identified this "Unknown"
+                    if ai_result_override:
+                        best_pest = ai_result_override
+                        display_text, color = f"AI: {best_pest}", (0, 255, 0)
+                    else:
+                        best_pest = "Unknown"
+                        display_text, color = "Analyzing..." if is_ai_processing else "Unknown", (0, 0, 255)
+                        
+                        # Trigger Gemini Background Thread
+                        now = time.time()
+                        if not is_ai_processing and (now - last_ai_request_time > 10):
+                            last_ai_request_time = now
+                            is_ai_processing = True
+                            threading.Thread(target=start_ai_analysis_thread, args=(frame.copy(),)).start()
+
+                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(annotated_frame, display_text, (x1, y1-10), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+    # Persistence Logic (Memory)
+    if pest_found_in_this_frame:
+        last_detected_pest = best_pest
+        last_confidence = best_conf
+        pest_detection_timeout = time.time() + (5.0 if ai_result_override else 2.0)
     
-    # Force initial load
-    camera = get_camera(0) 
+    return annotated_frame
 
+def generate_frames_cam1():
+    camera = get_camera(0)
     while True:
-        # 1. Camera Integrity Check
-        if camera is None or not camera.isOpened():
-            print("📷 Camera 0 disconnected. Reconnecting...")
-            camera = get_camera(0)
-            time.sleep(2)
-            if camera is None or not camera.isOpened():
-                yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 1 DISCONNECTED") + b'\r\n')
-                continue
-
-        # 2. Read Frame
         success, frame = camera.read()
-        if not success:
-            print("⚠️ Camera 0 read failed. Resetting...")
-            camera.release()
-            yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 1 NO SIGNAL") + b'\r\n')
-            continue
-        
-        annotated_frame = frame.copy()
-        
-        # --- DETECTION LOGIC ---
-        if is_detection_running:
-            # Initialize flags for THIS frame
-            pest_found_in_this_frame = False 
-            best_conf = 0.0
-            best_pest = None
-
-            # --- STEP 1: Run Custom Model (Priority) ---
-            if model:
-                results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
-                
-                for r in results:
-                    if len(r.boxes) > 0:
-                        for box in r.boxes:
-                            cls_id = int(box.cls[0].item())
-                            conf = float(box.conf[0].item())
-                            raw_label = r.names[cls_id]
-                            
-                            # --- 1. LABEL MAPPING (Combine Classes) ---
-                            label = raw_label # Default
-
-                            if raw_label in ["Cutworm Larva", "Cutworm Moth"]:
-                                label = "Cutworm"
-                            elif raw_label in ["Weaver Ant", "Weaver Ant Cluster"]:
-                                label = "Weaver Ant"
-                            elif raw_label in ["Mealybug", "Mealybug Cluster"]:
-                                label = "Mealybug"
-                            elif raw_label == "Gray Borer Generic":
-                                label = "Gray Borer"
-                            
-                            # A. SAFETY NET CHECK (Size/Shape)
-                            x1, y1, x2, y2 = map(int, box.xyxy[0])
-                            w = x2 - x1
-                            h = y2 - y1
-                            
-                            if not is_detection_logical(raw_label, w, h, 640, 480):
-                                continue
-                            
-
-                            # B. High Confidence (Known Pest)
-                            if conf > 0.55:
-                                pest_found_in_this_frame = True
-                                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                                cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1 - 10), 
-                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                                
-                                if conf > best_conf:
-                                    best_conf = conf
-                                    best_pest = label
-
-                            # C. Uncertainty Zone (Suspected Unknown)
-                            elif 0.25 < conf <= 0.55:
-                                pest_found_in_this_frame = True
-                                # Check if we already have a recent AI identification for this "Unknown"
-                                if ai_result_override:
-                                    label = ai_result_override
-                                    best_pest = ai_result_override
-                                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2) # Turn Green
-                                else:
-                                    label = "Identifying..."
-                                    best_pest = "Unknown"
-                                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 0, 255), 2) # Stay Red
-                                    
-                                    # Trigger AI only if not already processing and debounce is over
-                                    current_time = time.time()
-                                    if not is_ai_processing and (current_time - last_ai_request_time > AI_DEBOUNCE_SECONDS):
-                                        is_ai_processing = True
-                                        last_ai_request_time = current_time
-                                        threading.Thread(target=start_ai_analysis_thread, args=(frame.copy(),)).start()                       
-                            
-                                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                                cv2.putText(annotated_frame, f"Unknown {conf:.2f}", (x1, y1 - 10), 
-                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-                                
-                                if not ai_result_override:
-                                    best_conf = conf
-
-            # --- STEP 2: Run General Model (ONLY IF NO PEST FOUND) ---
-            # FIXED: We now check 'pest_found_in_this_frame' instead of the undefined 'pest_found'
-            #if not pest_found_in_this_frame and general_model:
-                #gen_results = general_model(frame, classes=ANIMAL_CLASSES, conf=0.60, verbose=False)
-               # for gr in gen_results:
-                    #if len(gr.boxes) > 0:
-                        #annotated_frame = gr.plot() # Draw animals
-                        #best_pest = "Unknown" # Treat intruders as Unknown
-                        #pest_found_in_this_frame = True
-                        
-                        #detected_animal = gr.names[int(gr.boxes[0].cls[0])]
-                        #print(f"⚠️ Intruder Detected: {detected_animal}")
-                        
-                        # --- THE CRITICAL FIX ---
-            # If the camera detected "Unknown", but we have an AI Override (e.g., "Dog"), use it!
-            if pest_found_in_this_frame and best_pest == "Unknown" and ai_result_override:
-                best_pest = ai_result_override
-                
-                # Optional: Draw the Real Name on screen
-                cv2.putText(annotated_frame, f"AI: {best_pest}", (10, 50), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-
-            # --- PERSISTENCE LOGIC (The Memory) ---
-            # If we saw something THIS frame, update the global status AND reset the timer
-            if pest_found_in_this_frame:
-                last_detected_pest = best_pest
-                last_confidence = best_conf
-                timeout_duration = 5.0 if ai_result_override else 2.0
-                pest_detection_timeout = time.time() + timeout_duration
-                #pest_detection_timeout = time.time() + 2.0 # Remember for 2 seconds
-            
-            # If we see NOTHING this frame, check if we are still "remembering" the last one
-            else:
-                if time.time() > pest_detection_timeout:
-                    last_detected_pest = "" # Time is up, clear the status
-                    ai_result_override = None
-            
-            # Always update the visual frame reference (No Locks)
-            last_annotated_frame = annotated_frame 
-
-        else:
-            # Detection Stopped
-            last_annotated_frame = frame
-            last_detected_pest = ""
-            ai_result_override = None
-
-        # Encode and Yield
-        ret, buffer = cv2.imencode('.jpg', annotated_frame)
-        if not ret: continue
+        if not success: break
+        processed = process_camera_frame(frame, "CAM 1") if is_detection_running else frame
+        ret, buffer = cv2.imencode('.jpg', processed)
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
 def generate_frames_cam2():
     camera = get_camera(1)
     while True:
-        if camera is None or not camera.isOpened():
-            yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 2 NOT FOUND") + b'\r\n')
-            time.sleep(10)
-            camera = get_camera(1)
-            continue
         success, frame = camera.read()
-        if not success: 
-            yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 2 NO SIGNAL") + b'\r\n')
-            time.sleep(0.5)
-            continue
-        ret, buffer = cv2.imencode('.jpg', frame)
-        if not ret: continue
+        if not success: break
+        processed = process_camera_frame(frame, "CAM 2") if is_detection_running else frame
+        ret, buffer = cv2.imencode('.jpg', processed)
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
 def generate_frames_cam3():
     camera = get_camera(2)
     while True:
-        if camera is None or not camera.isOpened():
-            yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 3 NOT FOUND") + b'\r\n')
-            time.sleep(10)
-            camera = get_camera(2)
-            continue
         success, frame = camera.read()
-        if not success: 
-            yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + get_blank_frame("CAM 3 NO SIGNAL") + b'\r\n')
-            time.sleep(0.5)
-            continue
-        ret, buffer = cv2.imencode('.jpg', frame)
-        if not ret: continue
+        if not success: break
+        processed = process_camera_frame(frame, "CAM 3") if is_detection_running else frame
+        ret, buffer = cv2.imencode('.jpg', processed)
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
 @app.route('/video_feed_1')
