@@ -32,7 +32,7 @@ if not GENAI_API_KEY:
     print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
 else:
     try:
-        genai.configure(api_key=GENAI_API_KEY) # type: ignore
+        genai.configure(api_key=GENAI_API_KEY)
         print("✅ Gemini AI Configured Successfully")
     except Exception as e:
         print(f"Error configuring Gemini: {e}")
@@ -111,25 +111,16 @@ def restrict_url_access(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        # Get the Referer (The page the user came from)
         referrer = request.headers.get('Referer')
-        
-        # If no referrer, they pasted URL in new tab/typed it - BLOCK
         if not referrer:
             return redirect(url_for('home'))
-        
-        # Ensure referrer is from same domain
         referrer_host = urlparse(referrer).netloc
         request_host = request.host
         
         if referrer_host != request_host:
             session.clear()
             return redirect(url_for('home'))
-        
-        # Get the referrer path
         referrer_path = urlparse(referrer).path
-        
-        # Allowed referrer pages that can access protected routes
         allowed_referrers = [
             '/admin_dashboard',
             '/add_pest',
