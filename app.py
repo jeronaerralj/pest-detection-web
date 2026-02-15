@@ -18,12 +18,73 @@ from datetime import timedelta
 from urllib.parse import urlparse
 import csv
 import io
+import serial
+import threading
+import json
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_fallback_key')
 app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOUT_SEC', '900')))
+
+# --- SERIAL CONFIGURATION ---
+SERIAL_PORT = 'COM3' # Change to your Arduino Port (e.g., /dev/ttyUSB0 on Linux)
+BAUD_RATE = 9600
+arduino = None
+arduino_data = {"uv": 0, "light": "OFF", "mode": "AUTO"}
+
+# ============= LIGHT LOGIC USING ARDUINO ==================
+
+def init_serial():
+    global arduino
+    try:
+        arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+        print(f"✅ Arduino Connected on {SERIAL_PORT}")
+        # Start background thread to read data
+        thread = threading.Thread(target=read_from_arduino)
+        thread.daemon = True
+        thread.start()
+    except Exception as e:
+        print(f"⚠️ Arduino Connection Failed: {e}")
+
+def read_from_arduino():
+    global arduino_data
+    while True:
+        if arduino and arduino.in_waiting > 0:
+            try:
+                line = arduino.readline().decode('utf-8').strip()
+                if line.startswith('{'): # Simple check for JSON
+                    arduino_data = json.loads(line)
+            except Exception:
+                pass
+        time.sleep(0.1)
+
+# Call this before app.run()
+init_serial()
+
+# --- NEW ROUTES FOR LIGHT CONTROL ---
+
+@app.route('/api/light/status')
+def get_light_status():
+    return jsonify(arduino_data)
+
+@app.route('/api/light/control', methods=['POST'])
+def control_light():
+    action = request.json.get('action')
+    if not arduino:
+        return jsonify({'success': False, 'error': 'Arduino not connected'})
+    
+    command = ""
+    if action == 'on': command = "LIGHT_ON\n"
+    elif action == 'off': command = "LIGHT_OFF\n"
+    elif action == 'auto': command = "AUTO_MODE\n"
+    
+    if command:
+        arduino.write(command.encode())
+        return jsonify({'success': True, 'status': action})
+    
+    return jsonify({'success': False, 'error': 'Invalid command'})
 
 # ================== AI CONFIGURATION ==================
 GENAI_API_KEY = os.getenv('GENAI_API_KEY')

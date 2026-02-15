@@ -232,6 +232,7 @@
   </header>
 
   <div class="main">
+
     <div class="left-panel">
       <div class="camera-card">
         <div class="camera-box main-cam">
@@ -258,6 +259,29 @@
         </div>
         <button type="button" class="btn-analytics" onclick="openModal()"> View Analytics</button>
         <button id="cancelBtn" class="btn-danger">Stop & Return Home</button>
+      </div>
+
+      <div class="camera-card" style="margin-top: 0px;">
+        <h3 class="section-title" style="margin: 0 0 10px 0; font-size: 1rem;">Arduino Light Control</h3>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+            <div class="info-group">
+                <label>UV Level</label>
+                <div id="uvValue" class="info-value" style="color: var(--primary);">0</div>
+            </div>
+            <div class="info-group">
+                <label>Status</label>
+                <div id="lightStatus" class="info-value">OFF</div>
+            </div>
+            <div class="info-group">
+                <label>Mode</label>
+                <div id="lightMode" class="info-value">AUTO</div>
+            </div>
+        </div>
+        <div class="button-row">
+            <button onclick="controlLight('on')" class="btn-primary" style="padding: 8px;">Force ON</button>
+            <button onclick="controlLight('off')" class="btn-secondary" style="padding: 8px; background-color: #555;">Force OFF</button>
+        </div>
+        <button onclick="controlLight('auto')" class="btn-secondary" style="width: 100%; margin-top: 10px; background-color: #0288d1; color: white;">Set to AUTO Mode</button>
       </div>
     </div>
 
@@ -355,7 +379,11 @@
     let pollInterval = null;
     let pestChart = null;
 
-    // --- CONTROLS ---
+    // --- INITIALIZATION ---
+    // Start polling Light/UV status immediately on load
+    setInterval(fetchLightStatus, 2000); 
+
+    // --- CAMERA CONTROLS ---
     cameraBtn.addEventListener("click", async () => {
       cameraOn = !cameraOn;
       if (cameraOn) {
@@ -369,12 +397,13 @@
       }
     });
 
+    // --- PEST DETECTION CONTROLS ---
     detectionBtn.addEventListener("click", async () => {
       if (!cameraOn && !detecting) return alert("Please turn on the camera first.");
       if (!detecting) {
         await fetch("/api/start", { method: "POST" });
         detecting = true; detectionBtn.textContent = "Stop Detection"; detectionBtn.style.backgroundColor = "#d32f2f";
-        statusText.textContent = "Detecting..."; pollInterval = setInterval(fetchStatus, 1000);
+        statusText.textContent = "Detecting..."; pollInterval = setInterval(fetchDetectionStatus, 1000);
       } else {
         stopDetection();
       }
@@ -398,7 +427,35 @@
         fields.card.style.borderLeftColor = "#2e7d32";
     }
 
-    async function fetchStatus() {
+    // --- ARDUINO LIGHT CONTROL LOGIC ---
+    async function fetchLightStatus() {
+        try {
+            const res = await fetch('/api/light/status');
+            const data = await res.json();
+            
+            document.getElementById('uvValue').innerText = data.uv;
+            document.getElementById('lightStatus').innerText = data.light;
+            document.getElementById('lightMode').innerText = data.mode;
+            
+            const statusEl = document.getElementById('lightStatus');
+            if (data.light === "ON") statusEl.style.color = "#d32f2f"; // Red for Active
+            else statusEl.style.color = "#388e3c"; // Green for OFF
+        } catch (e) { console.error("Light Connection Error", e); }
+    }
+
+    async function controlLight(action) {
+        try {
+            await fetch('/api/light/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action })
+            });
+            fetchLightStatus(); // Update UI immediately
+        } catch (e) { alert("Failed to send command to Arduino"); }
+    }
+
+    // --- PEST STATUS LOGIC ---
+    async function fetchDetectionStatus() {
       try {
         const res = await fetch("/api/status");
         const data = await res.json();
@@ -433,8 +490,8 @@
     // --- MODAL & ANALYTICS ---
     function openModal() {
         modal.style.display = "block";
-        fetchPestList(); // Populate dropdown
-        loadAnalytics(); // Load graph
+        fetchPestList();
+        loadAnalytics();
     }
     function closeModal() { modal.style.display = "none"; }
     window.onclick = (e) => { if (e.target == modal) closeModal(); }
@@ -444,7 +501,6 @@
             const res = await fetch('/api/analytics/pest-options');
             const data = await res.json();
             if (data.success) {
-                // Clear existing options except first
                 pestSelect.innerHTML = '<option value="all">All Pests (Overview)</option>';
                 data.pests.forEach(pest => {
                     const opt = document.createElement("option");
@@ -462,7 +518,6 @@
         
         let url, chartLabel, chartType;
 
-        // LOGIC: If "All" -> Bar Chart. If "Specific Pest" -> Line Chart (Timeline)
         if (pest === 'all') {
             url = `/api/analytics/pest-frequency?start=${start}&end=${end}`;
             chartLabel = "Total Detections";
@@ -492,8 +547,8 @@
                         borderColor: '#1b5e20',
                         borderWidth: 2,
                         borderRadius: chartType === 'bar' ? 4 : 0,
-                        fill: chartType === 'line', // Fill area under line
-                        tension: 0.3 // Smooth curves for line chart
+                        fill: chartType === 'line', 
+                        tension: 0.3
                     }]
                 },
                 options: {
