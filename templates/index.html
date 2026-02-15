@@ -7,9 +7,9 @@
   <title>AI Pest Detection - Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     :root {
@@ -26,9 +26,7 @@
       --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       background-color: var(--bg-color);
@@ -73,7 +71,7 @@
       align-items: start;
     }
 
-    /* LEFT PANEL (CAMERAS) */
+    /* LEFT PANEL */
     .left-panel {
       display: flex;
       flex-direction: column;
@@ -82,12 +80,14 @@
       top: 90px;
     }
 
-    .camera-card {
+    .camera-card, .controls-card, .id-card, .treatment-card {
       background: var(--card-bg);
-      padding: 15px;
       border-radius: var(--border-radius);
       box-shadow: var(--shadow);
     }
+    
+    .camera-card { padding: 15px; }
+    .controls-card { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
 
     .camera-box {
       background-color: #000;
@@ -100,303 +100,128 @@
       align-items: center;
     }
 
-    .camera-box.main-cam {
-      aspect-ratio: 4 / 3;
-      border: 2px solid var(--primary);
-    }
-
-    .secondary-cams-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 15px;
-    }
-
-    .camera-box.small-cam {
-      aspect-ratio: 4 / 3;
-      border: 1px solid #ccc;
-    }
-
-    .camera-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
+    .camera-box.main-cam { aspect-ratio: 4 / 3; border: 2px solid var(--primary); }
+    .secondary-cams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+    .camera-box.small-cam { aspect-ratio: 4 / 3; border: 1px solid #ccc; }
+    .camera-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     .cam-label {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 4px 10px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border-radius: 20px;
-      pointer-events: none;
-      backdrop-filter: blur(2px);
-    }
-
-    /* CONTROLS SECTION */
-    .controls-card {
-      background: var(--card-bg);
-      padding: 20px;
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow);
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
+      position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7);
+      color: white; padding: 4px 10px; font-size: 0.75rem; font-weight: 600;
+      border-radius: 20px; pointer-events: none; backdrop-filter: blur(2px);
     }
 
     .status {
-      text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      font-weight: 600;
-      background-color: var(--primary-light);
-      color: var(--primary);
-      font-size: 0.95rem;
-      border: 1px solid #c8e6c9;
+      text-align: center; padding: 10px; border-radius: 8px; font-weight: 600;
+      background-color: var(--primary-light); color: var(--primary);
+      font-size: 0.95rem; border: 1px solid #c8e6c9;
     }
 
-    .button-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+    .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
     button {
-      border: none;
-      padding: 12px;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: "Inter", sans-serif;
-      transition: transform 0.1s, opacity 0.2s;
+      border: none; padding: 12px; border-radius: 8px; font-weight: 600;
+      cursor: pointer; font-family: "Inter", sans-serif; transition: transform 0.1s;
     }
+    button:active { transform: scale(0.98); }
 
-    button:active {
-      transform: scale(0.98);
-    }
+    .btn-primary { background-color: var(--primary); color: white; }
+    .btn-primary:hover { background-color: #1b5e20; }
+    .btn-secondary { background-color: #607d8b; color: white; }
+    .btn-secondary:hover { background-color: #455a64; }
+    .btn-analytics { background-color: #1b5e20; color: white; margin-top: 5px; }
+    .btn-analytics:hover { background-color: #0e3610; }
+    .btn-danger { background-color: white; border: 2px solid #ef5350; color: #d32f2f; width: 100%; }
+    .btn-danger:hover { background-color: #ffebee; }
+    .camera-on { background-color: var(--accent) !important; }
 
-    .btn-primary {
-      background-color: var(--primary);
-      color: white;
-    }
+    /* RIGHT PANEL */
+    .right-panel { display: flex; flex-direction: column; gap: 25px; }
 
-    .btn-primary:hover {
-      background-color: #1b5e20;
-    }
-
-    .btn-secondary {
-      background-color: #607d8b;
-      color: white;
-    }
-
-    .btn-secondary:hover {
-      background-color: #455a64;
-    }
-
-    .btn-danger {
-      background-color: white;
-      border: 2px solid #ef5350;
-      color: #d32f2f;
-      width: 100%;
-    }
-
-    .btn-danger:hover {
-      background-color: #ffebee;
-    }
-
-    .camera-on {
-      background-color: var(--accent) !important;
-    }
-
-    /* RIGHT PANEL (RESULTS) */
-    .right-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 25px;
-    }
-
-    /* MAIN IDENTIFICATION CARD */
-    .id-card {
-      background: var(--card-bg);
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow);
-      padding: 25px;
-      display: flex;
-      gap: 25px;
-      align-items: flex-start;
-      border-left: 5px solid var(--primary);
-    }
+    .id-card { padding: 25px; display: flex; gap: 25px; align-items: flex-start; border-left: 5px solid var(--primary); }
 
     .photo-box {
-      width: 160px;
-      height: 160px;
-      flex-shrink: 0;
-      background-color: #f3f4f6;
-      border-radius: 12px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: var(--text-light);
-      font-size: 0.85rem;
-      overflow: hidden;
-      border: 1px solid #e5e7eb;
+      width: 160px; height: 160px; flex-shrink: 0; background-color: #f3f4f6;
+      border-radius: 12px; display: flex; justify-content: center; align-items: center;
+      color: var(--text-light); font-size: 0.85rem; overflow: hidden; border: 1px solid #e5e7eb;
     }
 
-    .id-info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
+    .id-info { flex: 1; display: flex; flex-direction: column; gap: 15px; }
 
     .info-group label {
-      display: block;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-light);
-      margin-bottom: 4px;
-      font-weight: 600;
+      display: block; font-size: 0.75rem; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--text-light); margin-bottom: 4px; font-weight: 600;
     }
 
     .info-value {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text-dark);
-      border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 4px;
+      font-size: 1.1rem; font-weight: 600; color: var(--text-dark);
+      border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;
     }
+    .info-value.highlight { font-size: 1.5rem; color: var(--primary); font-family: "Poppins", sans-serif; border-bottom: none; }
 
-    .info-value.highlight {
-      font-size: 1.5rem;
-      color: var(--primary);
-      font-family: "Poppins", sans-serif;
-      border-bottom: none;
-    }
-
-    /* TREATMENTS GRID */
+    /* TREATMENTS */
     .section-title {
-      text-align: center;
-      color: var(--primary);
-      font-family: "Poppins", sans-serif;
-      font-size: 1.2rem;
-      margin: 10px 0;
-      letter-spacing: 1px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+      text-align: center; color: var(--primary); font-family: "Poppins", sans-serif;
+      font-size: 1.2rem; margin: 10px 0; letter-spacing: 1px; display: flex;
+      align-items: center; justify-content: center; gap: 10px;
+    }
+    .section-title::before, .section-title::after {
+      content: ""; height: 1px; background: #ccc; flex: 1; max-width: 100px;
     }
 
-    .section-title::before,
-    .section-title::after {
-      content: "";
-      height: 1px;
-      background: #ccc;
-      flex: 1;
-      max-width: 100px;
-    }
+    .treatments-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+    .treatment-card { padding: 20px; border-top: 4px solid #ddd; display: flex; flex-direction: column; transition: transform 0.2s; }
+    .treatment-card:hover { transform: translateY(-3px); }
 
-    .treatments-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 20px;
-    }
-
-    .treatment-card {
-      background: var(--card-bg);
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow);
-      padding: 20px;
-      border-top: 4px solid #ddd;
-      display: flex;
-      flex-direction: column;
-      transition: transform 0.2s;
-    }
-
-    .treatment-card:hover {
-      transform: translateY(-3px);
-    }
-
-    /* Specific border colors for categories */
-    .border-cultural {
-      border-color: #8d6e63;
-    }
-
-    /* Brown */
-    .border-bio {
-      border-color: #66bb6a;
-    }
-
-    /* Green */
-    .border-sanitation {
-      border-color: #29b6f6;
-    }
-
-    /* Blue */
-    .border-mech {
-      border-color: #ffa726;
-    }
-
-    /* Orange */
-    .border-chem {
-      border-color: #ef5350;
-    }
-
-    /* Red */
+    .border-cultural { border-color: #8d6e63; }
+    .border-bio { border-color: #66bb6a; }
+    .border-sanitation { border-color: #29b6f6; }
+    .border-mech { border-color: #ffa726; }
+    .border-chem { border-color: #ef5350; }
 
     .treatment-card label {
-      font-family: "Poppins", sans-serif;
-      font-weight: 600;
-      font-size: 0.9rem;
-      margin-bottom: 10px;
-      color: #444;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-family: "Poppins", sans-serif; font-weight: 600; font-size: 0.9rem;
+      margin-bottom: 10px; color: #444; display: flex; align-items: center; gap: 8px;
+    }
+    .treatment-text {
+      font-size: 0.9rem; color: #555; line-height: 1.5; background: #fafafa;
+      padding: 10px; border-radius: 8px; flex: 1;
     }
 
-    .treatment-text {
-      font-size: 0.9rem;
-      color: #555;
-      line-height: 1.5;
-      background: #fafafa;
-      padding: 10px;
-      border-radius: 8px;
-      flex: 1;
+    /* MODAL STYLES */
+    #analyticsModal {
+        display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+        background-color: #fff; margin: 5vh auto; padding: 30px; border-radius: 15px;
+        width: 90%; max-width: 950px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative;
+    }
+
+    .close-modal {
+        position: absolute; right: 25px; top: 15px; font-size: 32px; color: #666; cursor: pointer;
+    }
+    .close-modal:hover { color: #d32f2f; }
+
+    .modal-controls {
+        display: flex; gap: 15px; margin-bottom: 25px; justify-content: center;
+        align-items: flex-end; flex-wrap: wrap; background: #f8f9fa; padding: 15px; border-radius: 10px;
+    }
+    
+    .filter-select {
+        padding: 6px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.95rem; min-width: 150px;
     }
 
     /* RESPONSIVE */
     @media (max-width: 1024px) {
-      .main {
-        grid-template-columns: 1fr;
-      }
-
-      .left-panel {
-        position: static;
-        order: 1;
-      }
-
-      .right-panel {
-        order: 2;
-      }
+      .main { grid-template-columns: 1fr; }
+      .left-panel { position: static; order: 1; }
+      .right-panel { order: 2; }
     }
-
     @media (max-width: 600px) {
-      .id-card {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-
-      .button-row {
-        grid-template-columns: 1fr;
-      }
+      .id-card { flex-direction: column; align-items: center; text-align: center; }
+      .button-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -407,14 +232,12 @@
   </header>
 
   <div class="main">
-
     <div class="left-panel">
       <div class="camera-card">
         <div class="camera-box main-cam">
           <span class="cam-label" style="background: rgba(220, 38, 38, 0.8);">Live: Main AI</span>
           <img id="camera-img-1" src="" alt="Awaiting Feed..." />
         </div>
-
         <div class="secondary-cams-container">
           <div class="camera-box small-cam">
             <span class="cam-label">CAM 2</span>
@@ -429,23 +252,18 @@
 
       <div class="controls-card">
         <div class="status" id="system-status-box">System Status: <span id="status-text">Ready</span></div>
-
         <div class="button-row">
           <button id="startBtn" class="btn-primary">Start Detection</button>
           <button id="cameraToggleBtn" class="btn-secondary">Turn Cameras On</button>
         </div>
-
+        <button type="button" class="btn-analytics" onclick="openModal()"> View Analytics</button>
         <button id="cancelBtn" class="btn-danger">Stop & Return Home</button>
       </div>
     </div>
 
     <div class="right-panel">
-
       <div class="id-card" id="id-card-panel">
-        <div class="photo-box" id="photoBox">
-          <span>Actual Photo</span>
-        </div>
-
+        <div class="photo-box" id="photoBox"><span>Actual Photo</span></div>
         <div class="id-info">
           <div class="info-group">
             <label>Detected Pest</label>
@@ -465,230 +283,237 @@
       </div>
 
       <div class="section-title">TREATMENT RECOMMENDATIONS</div>
-
       <div class="treatments-grid">
-        <div class="treatment-card border-cultural">
-          <label>Cultural Methods</label>
-          <div id="cultural" class="treatment-text">—</div>
-        </div>
-        <div class="treatment-card border-bio">
-          <label>Biological Control</label>
-          <div id="biological" class="treatment-text">—</div>
-        </div>
-        <div class="treatment-card border-sanitation">
-          <label>Sanitation</label>
-          <div id="sanitation" class="treatment-text">—</div>
-        </div>
-        <div class="treatment-card border-mech">
-          <label>Mechanical Control</label>
-          <div id="mechanical" class="treatment-text">—</div>
-        </div>
-        <div class="treatment-card border-chem">
-          <label>Chemical Control</label>
-          <div id="chemical" class="treatment-text">—</div>
-        </div>
+        <div class="treatment-card border-cultural"><label>Cultural Methods</label><div id="cultural" class="treatment-text">—</div></div>
+        <div class="treatment-card border-bio"><label>Biological Control</label><div id="biological" class="treatment-text">—</div></div>
+        <div class="treatment-card border-sanitation"><label>Sanitation</label><div id="sanitation" class="treatment-text">—</div></div>
+        <div class="treatment-card border-mech"><label>Mechanical Control</label><div id="mechanical" class="treatment-text">—</div></div>
+        <div class="treatment-card border-chem"><label>Chemical Control</label><div id="chemical" class="treatment-text">—</div></div>
       </div>
+    </div>
+  </div>
 
+  <div id="analyticsModal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 class="section-title" style="margin-top: 0;">Pest Detection Analytics</h2>
+        
+        <div class="modal-controls">
+            <div class="info-group">
+                <label>Select Pest</label>
+                <select id="pestSelect" class="filter-select" onchange="loadAnalytics()">
+                    <option value="all">All Pests (Overview)</option>
+                    </select>
+            </div>
+            <div class="info-group">
+                <label>Start Date</label>
+                <input type="date" id="startDate" class="filter-select">
+            </div>
+            <div class="info-group">
+                <label>End Date</label>
+                <input type="date" id="endDate" class="filter-select">
+            </div>
+            <button onclick="loadAnalytics()" class="btn-primary" style="padding: 8px 20px;">Update Graph</button>
+            <button onclick="exportCSV()" class="btn-secondary" style="padding: 8px 20px; background-color: #455a64; color: white;"> Export CSV</button>
+        </div>
+
+        <div style="height: 400px; width: 100%; background: #fff; padding: 10px; border-radius: 8px;">
+            <canvas id="pestChart"></canvas>
+        </div>
     </div>
   </div>
 
   <script>
-    // --- UPDATED JAVASCRIPT LOGIC ---
+    // --- VARIABLES ---
     const cam1 = document.getElementById("camera-img-1");
     const cam2 = document.getElementById("camera-img-2");
     const cam3 = document.getElementById("camera-img-3");
-
-    const statusTextBox = document.getElementById("system-status-box");
     const statusText = document.getElementById("status-text");
+    const statusTextBox = document.getElementById("system-status-box");
     const detectionBtn = document.getElementById("startBtn");
     const cameraBtn = document.getElementById("cameraToggleBtn");
     const cancelBtn = document.getElementById("cancelBtn");
+    const modal = document.getElementById("analyticsModal");
+    const pestSelect = document.getElementById("pestSelect");
 
-    // Elements for Data Population
-    const pestNameEl = document.getElementById("pestName");
-    const scientificNameEl = document.getElementById("scientificName");
-    const classificationEl = document.getElementById("classification");
-    const photoBox = document.getElementById("photoBox");
-    const culturalEl = document.getElementById("cultural");
-    const biologicalEl = document.getElementById("biological");
-    const sanitationEl = document.getElementById("sanitation");
-    const mechanicalEl = document.getElementById("mechanical");
-    const chemicalEl = document.getElementById("chemical");
-    const idCardPanel = document.getElementById("id-card-panel");
+    // Text Fields
+    const fields = {
+        name: document.getElementById("pestName"),
+        sci: document.getElementById("scientificName"),
+        class: document.getElementById("classification"),
+        cult: document.getElementById("cultural"),
+        bio: document.getElementById("biological"),
+        san: document.getElementById("sanitation"),
+        mech: document.getElementById("mechanical"),
+        chem: document.getElementById("chemical"),
+        photo: document.getElementById("photoBox"),
+        card: document.getElementById("id-card-panel")
+    };
 
     let cameraOn = false;
     let detecting = false;
     let pollInterval = null;
+    let pestChart = null;
 
+    // --- CONTROLS ---
     cameraBtn.addEventListener("click", async () => {
       cameraOn = !cameraOn;
       if (cameraOn) {
         const t = new Date().getTime();
-        cam1.src = "/video_feed_1?t=" + t;
-        cam2.src = "/video_feed_2?t=" + t;
-        cam3.src = "/video_feed_3?t=" + t;
-
-        cameraBtn.textContent = "Turn Cameras Off";
-        cameraBtn.classList.add("camera-on");
-        statusText.textContent = "Cameras Active";
+        cam1.src = "/video_feed_1?t=" + t; cam2.src = "/video_feed_2?t=" + t; cam3.src = "/video_feed_3?t=" + t;
+        cameraBtn.textContent = "Turn Cameras Off"; cameraBtn.classList.add("camera-on"); statusText.textContent = "Cameras Active";
       } else {
         cam1.src = ""; cam2.src = ""; cam3.src = "";
-
-        cameraBtn.textContent = "Turn Cameras On";
-        cameraBtn.classList.remove("camera-on");
-        statusText.textContent = "Camera Off";
-
-        if (detecting) {
-          await fetch("/api/stop", { method: "POST" });
-          detecting = false;
-          detectionBtn.textContent = "Start Detection";
-          detectionBtn.style.backgroundColor = "";
-          statusText.textContent = "Cameras turned off — detection stopped.";
-          clearInterval(pollInterval);
-        }
+        cameraBtn.textContent = "Turn Cameras On"; cameraBtn.classList.remove("camera-on"); statusText.textContent = "Camera Off";
+        if (detecting) stopDetection();
       }
     });
 
     detectionBtn.addEventListener("click", async () => {
-      if (!cameraOn && !detecting) {
-        alert("Please turn on the camera before starting pest detection.");
-        return;
-      }
-
+      if (!cameraOn && !detecting) return alert("Please turn on the camera first.");
       if (!detecting) {
         await fetch("/api/start", { method: "POST" });
-        detecting = true;
-        detectionBtn.textContent = "Stop Detection";
-        detectionBtn.style.backgroundColor = "#d32f2f";
-        statusText.textContent = "Detecting on CAM 1...";
-        pollInterval = setInterval(fetchStatus, 1000); // Polling every 1s
+        detecting = true; detectionBtn.textContent = "Stop Detection"; detectionBtn.style.backgroundColor = "#d32f2f";
+        statusText.textContent = "Detecting..."; pollInterval = setInterval(fetchStatus, 1000);
       } else {
+        stopDetection();
+      }
+    });
+
+    async function stopDetection() {
         await fetch("/api/stop", { method: "POST" });
-        detecting = false;
-        detectionBtn.textContent = "Start Detection";
-        detectionBtn.style.backgroundColor = "";
-        statusText.textContent = "Stopped";
-        resetCards();
-        clearInterval(pollInterval);
-      }
-    });
-
-    cancelBtn.addEventListener("click", async () => {
-      if (detecting) {
-        if (confirm("Are you sure you want to cancel detection and exit?")) {
-          await fetch("/api/stop", { method: "POST" });
-          clearInterval(pollInterval);
-          window.location.href = "/";
-        }
-      } else {
-        window.location.href = "/";
-      }
-    });
-
-    // Helper to safely update text cards
-    function updateText(element, text) {
-      if (element) element.innerText = (text && text !== "null") ? text : "—";
+        detecting = false; detectionBtn.textContent = "Start Detection"; detectionBtn.style.backgroundColor = "";
+        statusText.textContent = "Stopped"; clearInterval(pollInterval); resetCards();
     }
 
+    cancelBtn.addEventListener("click", () => {
+        if(detecting && confirm("Stop detection?")) stopDetection();
+        window.location.href = "/";
+    });
+
     function resetCards() {
-      updateText(pestNameEl, "—");
-      updateText(scientificNameEl, "—");
-      updateText(classificationEl, "—");
-      updateText(culturalEl, "—");
-      updateText(biologicalEl, "—");
-      updateText(sanitationEl, "—");
-      updateText(mechanicalEl, "—");
-      updateText(chemicalEl, "—");
-      statusTextBox.style.backgroundColor = "#e8f5e9";
-      statusTextBox.style.color = "#2e7d32";
-      idCardPanel.style.borderLeftColor = "#2e7d32"; // Reset to Green
+        Object.values(fields).forEach(el => { if(el.tagName === 'DIV') el.innerText = "—"; });
+        fields.photo.innerHTML = "<span>Actual Photo</span>";
+        statusTextBox.style.backgroundColor = "#e8f5e9"; statusTextBox.style.color = "#2e7d32";
+        fields.card.style.borderLeftColor = "#2e7d32";
     }
 
     async function fetchStatus() {
       try {
         const res = await fetch("/api/status");
         const data = await res.json();
-
-        // 1. Handle "Running" State Mis-match
-        if (!data.running && detecting) {
-          detecting = false;
-          detectionBtn.textContent = "Start Detection";
-          detectionBtn.style.backgroundColor = "";
-          statusText.textContent = "Stopped";
-          clearInterval(pollInterval);
-          return;
-        }
-
-        // 2. Handle "AI Analyzing" State
+        if (!data.running && detecting) stopDetection();
+        
         if (data.status_text && data.status_text.includes("AI is Analyzing")) {
-          statusText.textContent = "AI is Identifying Intruder...";
-          statusTextBox.style.backgroundColor = "#fff3cd"; // Yellow
-          statusTextBox.style.color = "#856404";
-          pestNameEl.textContent = "Analyzing...";
-          return;
+            statusText.textContent = "AI Identifying...";
+            statusTextBox.style.backgroundColor = "#fff3cd"; statusTextBox.style.color = "#856404";
+            fields.name.textContent = "Analyzing..."; return;
         }
 
-        // 3. Handle Valid Detection (Native or Non-Native)
         if (data.pest_name && data.pest_name !== "—" && data.pest_name !== "Unknown") {
+            fields.name.textContent = data.pest_name; statusText.textContent = `Detected: ${data.pest_name}`;
+            const isNonNative = data.pest_type && data.pest_type.includes("Non-Native");
+            
+            const color = isNonNative ? "#d32f2f" : "#2e7d32";
+            const bg = isNonNative ? "#ffebee" : "#e8f5e9";
+            
+            statusTextBox.style.backgroundColor = bg; statusTextBox.style.color = color; statusTextBox.style.borderColor = color;
+            fields.card.style.borderLeftColor = color; fields.class.style.color = color;
 
-          // Update Main Text
-          pestNameEl.textContent = data.pest_name;
-          statusText.textContent = `Detected: ${data.pest_name}`;
+            fields.sci.innerText = data.scientific_name; fields.class.innerText = data.classification;
+            fields.cult.innerText = data.cultural; fields.bio.innerText = data.biological;
+            fields.san.innerText = data.sanitation; fields.mech.innerText = data.mechanical;
+            fields.chem.innerText = data.chemical;
 
-          // --- COLOR LOGIC (RED vs GREEN) ---
-          // If the backend sends "Non-Native" in the type or text
-          const isNonNative = (data.pest_type && data.pest_type.includes("Non-Native")) ||
-            (data.status_text && data.status_text.includes("Non-Native"));
-
-          if (isNonNative) {
-            // RED ALERT for Non-Native
-            statusTextBox.style.backgroundColor = "#ffebee"; // Light Red
-            statusTextBox.style.color = "#d32f2f";
-            statusTextBox.style.border = "1px solid #ef5350";
-            idCardPanel.style.borderLeftColor = "#d32f2f"; // Card Stripe Red
-            classificationEl.style.color = "#d32f2f";
-          } else {
-            // GREEN for Native
-            statusTextBox.style.backgroundColor = "#e8f5e9"; // Light Green
-            statusTextBox.style.color = "#2e7d32";
-            statusTextBox.style.border = "1px solid #c8e6c9";
-            idCardPanel.style.borderLeftColor = "#2e7d32"; // Card Stripe Green
-            classificationEl.style.color = "#2e7d32";
-          }
-
-          // Update All Info Cards
-          updateText(scientificNameEl, data.scientific_name);
-          updateText(classificationEl, data.classification);
-          updateText(culturalEl, data.cultural);
-          updateText(biologicalEl, data.biological);
-          updateText(sanitationEl, data.sanitation);
-          updateText(mechanicalEl, data.mechanical);
-          updateText(chemicalEl, data.chemical);
-
-          // Update Photo if available
-          if (data.pest_photo) {
-            photoBox.innerHTML = `<img src="${data.pest_photo}" alt="pest" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;
-          }
-
-        } else {
-          // Nothing detected yet or Unknown
-          statusText.textContent = data.status_text || "Scanning...";
-          statusTextBox.style.backgroundColor = "#e8f5e9"; // Default Green
-          statusTextBox.style.color = "#2e7d32";
+            if (data.pest_photo) fields.photo.innerHTML = `<img src="${data.pest_photo}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;
         }
-
-      } catch (err) {
-        console.error("Error fetching status:", err);
-      }
+      } catch (err) { console.error(err); }
     }
 
-    window.addEventListener("DOMContentLoaded", () => {
-      cameraOn = false;
-      cam1.src = ""; cam2.src = ""; cam3.src = "";
-      statusText.textContent = "System Ready - Cameras Off";
-    });
+    // --- MODAL & ANALYTICS ---
+    function openModal() {
+        modal.style.display = "block";
+        fetchPestList(); // Populate dropdown
+        loadAnalytics(); // Load graph
+    }
+    function closeModal() { modal.style.display = "none"; }
+    window.onclick = (e) => { if (e.target == modal) closeModal(); }
+
+    async function fetchPestList() {
+        try {
+            const res = await fetch('/api/analytics/pest-options');
+            const data = await res.json();
+            if (data.success) {
+                // Clear existing options except first
+                pestSelect.innerHTML = '<option value="all">All Pests (Overview)</option>';
+                data.pests.forEach(pest => {
+                    const opt = document.createElement("option");
+                    opt.value = pest; opt.innerText = pest;
+                    pestSelect.appendChild(opt);
+                });
+            }
+        } catch(e) { console.error("Error fetching pest list", e); }
+    }
+
+    async function loadAnalytics() {
+        const pest = pestSelect.value;
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        
+        let url, chartLabel, chartType;
+
+        // LOGIC: If "All" -> Bar Chart. If "Specific Pest" -> Line Chart (Timeline)
+        if (pest === 'all') {
+            url = `/api/analytics/pest-frequency?start=${start}&end=${end}`;
+            chartLabel = "Total Detections";
+            chartType = "bar";
+        } else {
+            url = `/api/analytics/pest-timeline?pest=${encodeURIComponent(pest)}&start=${start}&end=${end}`;
+            chartLabel = `Detections of ${pest} over time`;
+            chartType = "line";
+        }
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (!data.success) return;
+
+            const ctx = document.getElementById('pestChart').getContext('2d');
+            if (pestChart) pestChart.destroy();
+
+            pestChart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: chartLabel,
+                        data: data.values,
+                        backgroundColor: chartType === 'bar' ? '#2e7d32' : 'rgba(46, 125, 50, 0.2)',
+                        borderColor: '#1b5e20',
+                        borderWidth: 2,
+                        borderRadius: chartType === 'bar' ? 4 : 0,
+                        fill: chartType === 'line', // Fill area under line
+                        tension: 0.3 // Smooth curves for line chart
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        } catch (err) { console.error("Analytics Error:", err); }
+    }
+
+    function exportCSV() {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        window.location.href = `/api/analytics/export-csv?start=${start}&end=${end}`;
+    }
   </script>
-
 </body>
-
 </html>

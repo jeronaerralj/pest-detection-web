@@ -16,6 +16,8 @@ from dotenv import load_dotenv
 from functools import wraps
 from datetime import timedelta
 from urllib.parse import urlparse
+import csv
+import io
 
 load_dotenv()
 
@@ -74,6 +76,119 @@ HISTORY_FOLDER = os.path.join(STATIC_FOLDER, 'history')
 os.makedirs(DB_DIR, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(HISTORY_FOLDER, exist_ok=True) 
+
+# ================== GRAPH ====================
+
+@app.route('/api/analytics/pest-options')
+def get_pest_options():
+    """Returns a list of unique pests found in the history for the dropdown menu."""
+    try:
+        conn = sqlite3.connect(DATABASE)
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT yolo_name FROM history ORDER BY yolo_name ASC")
+        pests = [row[0] for row in cur.fetchall()]
+        conn.close()
+        return jsonify({'success': True, 'pests': pests})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/analytics/pest-timeline')
+def get_pest_timeline():
+    """Returns daily counts for a SPECIFIC pest to show trends over time."""
+    pest_name = request.args.get('pest')
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    
+    conn = sqlite3.connect(DATABASE)
+    cur = conn.cursor()
+    
+    # Group by Date (strftime extracts YYYY-MM-DD from the timestamp)
+    query = "SELECT strftime('%Y-%m-%d', timestamp) as date, COUNT(*) FROM history WHERE yolo_name = ?"
+    params = [pest_name]
+    
+    if start_date and end_date:
+        query += " AND timestamp BETWEEN ? AND ?"
+        params.extend([f"{start_date} 00:00:00", f"{end_date} 23:59:59"])
+    
+    query += " GROUP BY date ORDER BY date ASC"
+    
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    conn.close()
+    
+    return jsonify({
+        'success': True, 
+        'labels': [row[0] for row in rows],  # Dates
+        'values': [row[1] for row in rows]   # Counts
+    })
+
+@app.route('/api/analytics/pest-frequency')
+def get_pest_frequency():
+    # Get date range from request args (e.g., ?start=2024-01-01&end=2024-12-31)
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    
+    conn = None
+    try:
+        conn = sqlite3.connect(DATABASE)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Base query
+        query = "SELECT yolo_name, COUNT(*) as count FROM history"
+        params = []
+        
+        # Apply date filters if provided
+        if start_date and end_date:
+            query += " WHERE timestamp BETWEEN ? AND ?"
+            params.extend([f"{start_date} 00:00:00", f"{end_date} 23:59:59"])
+        
+        query += " GROUP BY yolo_name ORDER BY count DESC"
+        
+        cur.execute(query, params)
+        results = cur.fetchall()
+        
+        # Format data for Chart.js
+        labels = [row['yolo_name'] for row in results]
+        values = [row['count'] for row in results]
+        
+        return jsonify({
+            'success': True,
+            'labels': labels,
+            'values': values
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if conn: conn.close()
+
+@app.route('/api/analytics/export-csv')
+def export_pest_csv():
+    """Generates a CSV report of pest detections."""
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    
+    conn = sqlite3.connect(DATABASE)
+    cur = conn.cursor()
+    
+    query = "SELECT timestamp, yolo_name, detection_type, user_session FROM history"
+    params = []
+    if start_date and end_date:
+        query += " WHERE timestamp BETWEEN ? AND ?"
+        params.extend([f"{start_date} 00:00:00", f"{end_date} 23:59:59"])
+    
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['Timestamp', 'Pest Name', 'Detection Method', 'Logged By'])
+    cw.writerows(rows)
+    
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=pest_report_{datetime.date.today()}.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
 
 # ================== HELPERS ==================
 
