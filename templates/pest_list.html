@@ -451,11 +451,10 @@
       for (let row of rows) {
         const typeCell = row.getElementsByTagName("td")[0];
         if (typeCell) {
-          const typeText = typeCell.textContent || typeCell.innerText;
-          const rowText = row.textContent || row.innerText;
-
-          const typeMatch = (filterTerm === "" || typeText.toUpperCase().indexOf(filterTerm) > -1);
-          const searchMatch = (rowText.toUpperCase().indexOf(searchTerm) > -1);
+          const typeText = (typeCell.textContent || typeCell.innerText).trim().toUpperCase();
+          const rowText = (row.textContent || row.innerText).toUpperCase();
+          const typeMatch = (filterTerm === "" || typeText === filterTerm);
+          const searchMatch = (rowText.indexOf(searchTerm) > -1);
 
           row.style.display = (typeMatch && searchMatch) ? "" : "none";
         }
