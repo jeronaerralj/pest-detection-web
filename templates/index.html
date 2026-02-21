@@ -61,7 +61,6 @@
             gap: 12px;
         }
 
-        /* SVG Icon Style */
         .brand-icon {
             fill: var(--primary);
             height: 40px;
@@ -100,10 +99,9 @@
             width: 100%;
             display: grid;
             gap: 1.5rem;
-            /* 3 Columns */
             grid-template-columns: 320px 1fr 300px;
             align-items: start;
-            overflow-y: auto; /* Allow scrolling within dashboard if needed */
+            overflow-y: auto; 
         }
 
         /* --- CARDS GENERAL --- */
@@ -148,6 +146,14 @@
             position: relative;
             aspect-ratio: 4/3;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .camera-feed.active-cam {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-light);
         }
 
         .camera-feed img { width: 100%; height: 100%; object-fit: cover; display: block;}
@@ -159,6 +165,7 @@
             font-size: 0.75rem; font-weight: 600;
             backdrop-filter: blur(4px);
             display: flex; align-items: center; gap: 6px;
+            transition: background 0.3s;
         }
 
         .live-dot { height: 8px; width: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s infinite; }
@@ -170,6 +177,50 @@
             grid-template-columns: 1fr 1fr;
             gap: 10px;
             margin-top: 10px;
+        }
+
+        /* --- FULLSCREEN CAMERA STYLES --- */
+        .expand-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 6px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s, background 0.2s;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+
+        .expand-btn:hover {
+            background: rgba(46, 125, 50, 0.9); /* Primary Green */
+        }
+
+        .camera-feed:hover .expand-btn {
+            opacity: 1;
+        }
+
+        /* Fix image scaling when in fullscreen mode */
+        .camera-feed:fullscreen {
+            background: #000;
+            border: none !important;
+            border-radius: 0;
+            box-shadow: none !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .camera-feed:fullscreen img {
+            object-fit: contain; /* Shows the whole feed without cropping */
+            width: 100vw;
+            height: 100vh;
         }
 
         /* --- COLUMN 2: INTELLIGENCE --- */
@@ -219,7 +270,6 @@
         .treatment-box h4 { margin: 0 0 5px 0; font-size: 0.85rem; color: #475569; }
         .treatment-box p { margin: 0; font-size: 0.9rem; color: #334155; }
 
-        /* Colors for treatments */
         .box-cult { border-color: #8d6e63; }
         .box-bio { border-color: #66bb6a; }
         .box-san { border-color: #29b6f6; }
@@ -269,9 +319,9 @@
         .btn-analytics { background: #0f172a; color: white; }
         .btn-analytics:hover { background: #1e293b; }
 
-        /* ARDUINO PANEL (Dark Theme) */
+        /* ARDUINO PANEL */
         .arduino-panel {
-            background: #1f2937; /* Dark Gray */
+            background: #1f2937;
             color: white;
             border-radius: 12px;
             padding: 15px;
@@ -322,7 +372,7 @@
     <header>
         <div class="brand">
             <svg class="brand-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M19 8h-1.81c-.45-.78-1.07-1.45-1.82-1.96l.93-.93c.39-.39.39-1.02 0-1.41-.39-.39-1.02-.39-1.41 0l-1.47 1.47C12.96 5.06 12.49 5 12 5s-.96.06-1.41.17L9.11 3.7c-.39-.39-1.02-.39-1.41 0-.39.39-.39 1.02 0 1.41l.93.93c-.75.51-1.37 1.18-1.82 1.96H5c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h1v2c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2v-2h1c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 12H11v-2h2v2zm0-4H11v-2h2v2zm0-4H11V8h2v4z"/>
+                <path d="M19 8h-1.81c-.45-.78-1.07-1.45-1.82-1.96l.93-.93c.39-.39.39-1.02 0-1.41-.39-.39-1.02-.39-1.41 0l-1.47 1.47C12.96 5.06 12.49 5 12 5s-.96.06-1.41.17L9.11 3.7c-.39-.39-1.02-.39-1.41 0-.39.39-.39 1.02 0 1.41l.93.93c-.75.51-1.37 1.18-1.82 1.96H5c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h1v2c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2v-2h1c1.1 0 2-.9 2-2v-2h1c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 12H11v-2h2v2zm0-4H11v-2h2v2zm0-4H11V8h2v4z"/>
             </svg>
             <div>
                 <h1>PINEPESTIFY</h1>
@@ -341,18 +391,30 @@
                 <div class="card-header">
                     <h3 class="card-title"><span class="material-icons-round">videocam</span> Live Feeds</h3>
                 </div>
-                <div class="camera-feed main-cam">
-                    <div class="cam-badge"><div class="live-dot"></div> Main AI</div>
+                
+                <div class="camera-feed main-cam active-cam" data-cam="CAM 1">
+                    <div class="cam-badge" id="badge-cam1"><div class="live-dot"></div> Main AI</div>
                     <img id="camera-img-1" src="" alt="Waiting for stream..." />
-                </div>
-                <div class="sub-cams">
-                    <div class="camera-feed" style="aspect-ratio: 16/9;">
-                        <div class="cam-badge">Cam 2</div>
-                        <img id="camera-img-2" src="" alt="No Signal" />
+                    <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
+                        <span class="material-icons-round">fullscreen</span>
                     </div>
-                    <div class="camera-feed" style="aspect-ratio: 16/9;">
-                        <div class="cam-badge">Cam 3</div>
+                </div>
+                
+                <div class="sub-cams">
+                    <div class="camera-feed" data-cam="CAM 2" style="aspect-ratio: 16/9;">
+                        <div class="cam-badge" id="badge-cam2">Cam 2</div>
+                        <img id="camera-img-2" src="" alt="No Signal" />
+                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
+                            <span class="material-icons-round">fullscreen</span>
+                        </div>
+                    </div>
+                    
+                    <div class="camera-feed" data-cam="CAM 3" style="aspect-ratio: 16/9;">
+                        <div class="cam-badge" id="badge-cam3">Cam 3</div>
                         <img id="camera-img-3" src="" alt="No Signal" />
+                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
+                            <span class="material-icons-round">fullscreen</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -536,6 +598,50 @@
         let detecting = false;
         let pollInterval = null;
         let pestChart = null;
+        
+        // MULTI-CAM TRACKERS
+        let selectedCamId = "CAM 1";
+        let latestStatusData = null;
+
+        // --- FULLSCREEN LOGIC ---
+        function toggleFullScreen(elem, event) {
+            // Prevent the click from simultaneously triggering the camera selection logic
+            if (event) event.stopPropagation();
+
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => {
+                    console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Camera feed selector logic
+        document.querySelectorAll('.camera-feed').forEach(feed => {
+            // Single Click: Selects the camera for data view
+            feed.addEventListener('click', function() {
+                // Remove active class from all
+                document.querySelectorAll('.camera-feed').forEach(f => f.classList.remove('active-cam'));
+                // Add active to clicked
+                this.classList.add('active-cam');
+                
+                // Update selectedCamId based on data attribute
+                selectedCamId = this.getAttribute('data-cam');
+                
+                // If detecting, immediately update the main cards with the cached data for this camera
+                if (latestStatusData && latestStatusData.cameras) {
+                    updateUIForSelectedCam(latestStatusData.cameras[selectedCamId]);
+                } else {
+                    statusText.textContent = `Viewing ${selectedCamId} (Waiting...)`;
+                }
+            });
+
+            // Double Click: Triggers Fullscreen
+            feed.addEventListener('dblclick', function() {
+                toggleFullScreen(this);
+            });
+        });
 
         // --- INITIALIZATION ---
         setInterval(fetchLightStatus, 2000); 
@@ -578,6 +684,11 @@
             detectionBtn.innerHTML = '<span class="material-icons-round">play_arrow</span> Start Detect';
             detectionBtn.style.backgroundColor = "";
             statusText.textContent = "Stopped"; clearInterval(pollInterval); resetCards();
+            
+            // Reset Badges
+            document.getElementById("badge-cam1").style.background = "rgba(0,0,0,0.6)";
+            document.getElementById("badge-cam2").style.background = "rgba(0,0,0,0.6)";
+            document.getElementById("badge-cam3").style.background = "rgba(0,0,0,0.6)";
         }
 
         cancelBtn.addEventListener("click", () => {
@@ -624,32 +735,79 @@
             try {
                 const res = await fetch("/api/status");
                 const data = await res.json();
-                if (!data.running && detecting) stopDetection();
+                if (!data.running && detecting) return stopDetection();
                 
-                if (data.status_text && data.status_text.includes("AI is Analyzing")) {
-                    statusText.textContent = "AI Identifying...";
-                    statusTextBox.style.backgroundColor = "#fff3cd"; statusTextBox.style.color = "#856404";
-                    fields.name.textContent = "Analyzing..."; return;
-                }
+                latestStatusData = data;
 
-                if (data.pest_name && data.pest_name !== "—" && data.pest_name !== "Unknown") {
-                    fields.name.textContent = data.pest_name; statusText.textContent = `Found: ${data.pest_name}`;
-                    const isNonNative = data.pest_type && data.pest_type.includes("Non-Native");
+                if (data.cameras) {
+                    // 1. Update the central UI for WHICHEVER camera is currently selected
+                    updateUIForSelectedCam(data.cameras[selectedCamId]);
                     
-                    const color = isNonNative ? "#d32f2f" : "#2e7d32";
-                    const bg = isNonNative ? "#fee2e2" : "#e8f5e9";
-                    
-                    statusTextBox.style.backgroundColor = bg; statusTextBox.style.color = color; 
-                    fields.card.style.borderTopColor = color; fields.class.style.color = color;
-
-                    fields.sci.innerText = data.scientific_name; fields.class.innerText = data.classification;
-                    fields.cult.innerText = data.cultural; fields.bio.innerText = data.biological;
-                    fields.san.innerText = data.sanitation; fields.mech.innerText = data.mechanical;
-                    fields.chem.innerText = data.chemical;
-
-                    if (data.pest_photo) fields.photo.innerHTML = `<img src="${data.pest_photo}" style="width:100%;height:100%;object-fit:cover;">`;
+                    // 2. Update the background red badges for ALL cameras independently
+                    updateCameraBadges(data.cameras);
                 }
             } catch (err) { console.error(err); }
+        }
+
+        function updateUIForSelectedCam(camData) {
+            if (!camData) return;
+            
+            if (camData.status_text && camData.status_text.includes("AI is Analyzing")) {
+                statusText.textContent = `[${selectedCamId}] AI Identifying...`;
+                statusTextBox.style.backgroundColor = "#fff3cd"; statusTextBox.style.color = "#856404";
+                fields.name.textContent = "Analyzing..."; 
+                return;
+            }
+
+            if (camData.pest_name && camData.pest_name !== "—" && camData.pest_name !== "Unknown") {
+                fields.name.textContent = camData.pest_name; 
+                statusText.textContent = `[${selectedCamId}] ${camData.status_text}`;
+                
+                const isNonNative = camData.classification && camData.classification.includes("Non-Native");
+                const color = isNonNative ? "#d32f2f" : "#2e7d32";
+                const bg = isNonNative ? "#fee2e2" : "#e8f5e9";
+                
+                statusTextBox.style.backgroundColor = bg; statusTextBox.style.color = color; 
+                fields.card.style.borderTopColor = color; fields.class.style.color = color;
+
+                fields.sci.innerText = camData.scientific_name; fields.class.innerText = camData.classification;
+                fields.cult.innerText = camData.cultural; fields.bio.innerText = camData.biological;
+                fields.san.innerText = camData.sanitation; fields.mech.innerText = camData.mechanical;
+                fields.chem.innerText = camData.chemical;
+
+                if (camData.pest_photo) fields.photo.innerHTML = `<img src="${camData.pest_photo}" style="width:100%;height:100%;object-fit:cover;">`;
+            } else {
+                fields.name.textContent = "—";
+                statusText.textContent = `[${selectedCamId}] Scanning...`;
+                statusTextBox.style.backgroundColor = "#e8f5e9"; statusTextBox.style.color = "#1b5e20";
+                fields.card.style.borderTopColor = "#2e7d32"; fields.class.style.color = "var(--text-main)";
+                
+                fields.sci.innerText = "—"; fields.class.innerText = "—";
+                fields.cult.innerText = "—"; fields.bio.innerText = "—";
+                fields.san.innerText = "—"; fields.mech.innerText = "—";
+                fields.chem.innerText = "—";
+                fields.photo.innerHTML = "<span>Subject Photo</span>";
+            }
+        }
+
+        function updateCameraBadges(cameras) {
+            const c1 = cameras["CAM 1"];
+            const b1 = document.getElementById("badge-cam1");
+            if (c1 && c1.pest_name !== "—" && c1.pest_name !== "Unknown" && c1.pest_name !== "Identifying...") {
+                b1.style.background = "rgba(239, 68, 68, 0.9)"; // Red Alert
+            } else { b1.style.background = "rgba(0,0,0,0.6)"; }
+
+            const c2 = cameras["CAM 2"];
+            const b2 = document.getElementById("badge-cam2");
+            if (c2 && c2.pest_name !== "—" && c2.pest_name !== "Unknown" && c2.pest_name !== "Identifying...") {
+                b2.style.background = "rgba(239, 68, 68, 0.9)";
+            } else { b2.style.background = "rgba(0,0,0,0.6)"; }
+
+            const c3 = cameras["CAM 3"];
+            const b3 = document.getElementById("badge-cam3");
+            if (c3 && c3.pest_name !== "—" && c3.pest_name !== "Unknown" && c3.pest_name !== "Identifying...") {
+                b3.style.background = "rgba(239, 68, 68, 0.9)";
+            } else { b3.style.background = "rgba(0,0,0,0.6)"; }
         }
 
         // --- MODAL & ANALYTICS ---

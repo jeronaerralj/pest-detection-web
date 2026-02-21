@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify, Response, make_response
 import sqlite3, os, cv2, threading, atexit, re, datetime, time, json
 import numpy as np 
 import base64 
@@ -19,8 +19,6 @@ from urllib.parse import urlparse
 import csv
 import io
 import serial
-import threading
-import json
 
 load_dotenv()
 
@@ -106,25 +104,18 @@ if not GROQ_API_KEY:
 if not GITHUB_TOKEN:
     print("⚠️ WARNING: GITHUB_TOKEN not found (GitHub Vision fallback disabled)")
 
-# ================== GLOBAL STATE & LOCKS ==================
+# ================== GLOBAL STATE & LOCKS (UPDATED FOR MULTI-CAM) ==================
 frame_lock = threading.Lock()
 db_lock = threading.Lock()
 
-last_detected_pest = "" 
-pest_detection_timeout = 0          
 is_detection_running = False      
-last_annotated_frame = None       
-last_confidence = 0.0
-last_logged_pest = None 
-ai_result_override = None
-last_ai_request_time = 0
-AI_DEBOUNCE_SECONDS = 5
-last_ai_data_cache = None
 
-# AI Threading State
-is_ai_processing = False
-ai_cooldown_timer = 0
-AI_COOLDOWN_SECONDS = 60  
+# Individual tracking for each camera
+cam_states = {
+    "CAM 1": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None},
+    "CAM 2": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None},
+    "CAM 3": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None}
+}
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_DIR = os.path.join(BASE_DIR, 'database')
@@ -481,7 +472,6 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
     # 1. Try Gemini Text
     if GENAI_API_KEY:
         try:
-            # (If you are using the Text Lookup Scenario B)
             model = genai.GenerativeModel('gemini-2.5-flash') # type: ignore
             response = model.generate_content(system_prompt)
             return json.loads(clean_json_text(response.text))
@@ -509,27 +499,27 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         
     return None
 
-def start_ai_analysis_thread(frame_image):
+def start_ai_analysis_thread(frame_image, cam_id):
     """
     Handles file saving AND AI analysis in the background
     so the main thread (and camera) never freezes.
     """
     try:
-        temp_filename = f"unknown_{int(time.time())}.jpg"
+        temp_filename = f"unknown_{cam_id.replace(' ', '')}_{int(time.time())}.jpg"
         temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
         cv2.imwrite(temp_path, frame_image)
-        process_unknown_pest_background(temp_path)
+        process_unknown_pest_background(temp_path, cam_id)
         
     except Exception as e:
         print(f"❌ Thread Start Error: {e}")
-        global is_ai_processing
-        is_ai_processing = False
+        global cam_states
+        cam_states[cam_id]["ai_processing"] = False
 
-def process_unknown_pest_background(image_path):
+def process_unknown_pest_background(image_path, cam_id):
     """Background thread function to handle AI analysis and database learning."""
-    global is_ai_processing, last_detected_pest, ai_result_override, last_ai_data_cache 
+    global cam_states 
     
-    print("🚀 Background Thread Started: Analyzing Unknown Pest...")
+    print(f"🚀 Background Thread Started: Analyzing Unknown Pest on {cam_id}...")
     try:
         # 1. Attempt Gemini/AI Identification
         ai_data = fetch_pest_info_from_ai("Unknown", image_path=image_path)
@@ -537,10 +527,10 @@ def process_unknown_pest_background(image_path):
         # 2. Validate AI Response
         if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None]:
             identified_name = ai_data.get('common_name').strip()
-            print(f"✅ AI Identified: {identified_name}")
+            print(f"✅ AI Identified on {cam_id}: {identified_name}")
 
             # Update Session Cache
-            last_ai_data_cache = ai_data
+            cam_states[cam_id]["ai_cache"] = ai_data
 
             # 3. Save to Database
             try:
@@ -572,17 +562,17 @@ def process_unknown_pest_background(image_path):
                 print(f"⚠️ Database Save Failed: {db_e}")
 
             # 4. Update UI Override
-            ai_result_override = identified_name
-            last_detected_pest = identified_name
+            cam_states[cam_id]["ai_override"] = identified_name
+            cam_states[cam_id]["detected_pest"] = identified_name
             
         else:
-            print("❌ AI Identification Failed.")
-            ai_result_override = "Unidentified Object"
+            print(f"❌ AI Identification Failed for {cam_id}.")
+            cam_states[cam_id]["ai_override"] = "Unidentified Object"
             
     except Exception as e:
-        print(f"❌ Critical Background Error: {e}")
+        print(f"❌ Critical Background Error on {cam_id}: {e}")
     finally:
-        is_ai_processing = False
+        cam_states[cam_id]["ai_processing"] = False
 
 # ================== DB INIT & PATCHING ==================
 def init_databases():
@@ -665,7 +655,7 @@ def log_detection_event(pest_name, image_path, detection_type, camera_id="CAM 1"
             conn = sqlite3.connect(DATABASE, timeout=10)
             current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             try:
-                user = session.get('admin', 'SYSTEM') 
+                user = session.get('admin', 'SYSTEM') if 'session' in globals() else 'SYSTEM'
             except:
                 user = 'SYSTEM'
             image_path = image_path.replace('\\', '/')
@@ -677,28 +667,6 @@ def log_detection_event(pest_name, image_path, detection_type, camera_id="CAM 1"
             conn.close()
         except Exception as e:
             print(f"Error logging history: {e}")
-
-def handle_continuous_logging(pest_name):
-    global last_logged_pest, last_annotated_frame
-    
-    if pest_name and pest_name != last_logged_pest:
-        current_ref = last_annotated_frame
-        
-        if current_ref is not None:
-            try:
-                frame_copy = current_ref.copy()
-                safe_name = secure_filename(f"{pest_name}_{int(time.time())}.jpg")
-                save_path = os.path.join(STATIC_FOLDER, 'history', safe_name)
-                
-                cv2.imwrite(save_path, frame_copy)
-                
-                db_path = f"history/{safe_name}"
-                log_detection_event(pest_name, db_path, 'Continuous Feed')
-                
-                last_logged_pest = pest_name 
-                print(f"✅ Auto-logged: {pest_name}")
-            except Exception as e:
-                print(f"Error continuous logging: {e}")   
 
 # --- Explicit Type Hinting to prevent Pylance errors ---
 cams: dict[int, cv2.VideoCapture | None] = {0: None, 1: None, 2: None}
@@ -736,33 +704,26 @@ def is_detection_logical(label, box_w, box_h, frame_w, frame_h):
         return True
 
     # --- RULE 2: CUTWORM LARVA (The Worm) ---
-    # Larvae are long tubes. 
-    # Reject if the box is a perfect square (likely a rock or dirt patch).
     if label == "Cutworm Larva":
         if ratio < 1.3: return False # Too square
         return True
 
     # --- RULE 3: FLOWER THRIPS & MEALYBUG (The Micros) ---
-    # These are tiny. 
-    # Reject if they take up a huge chunk of the screen (likely a bird/butterfly).
     if label in ["Flower Thrips", "Mealybug"]:
         if coverage > 5.0: return False # Impossibly huge
         return True
 
     # --- RULE 4: CLUSTERS (The Infestation) ---
-    # Clusters (Ants/Mealybugs) are allowed to be large, but not "Whole Screen" large.
     if "Cluster" in label:
         if coverage > 40.0: return False # Likely lighting glitch/wall
         return True
 
     # --- RULE 5: ANTS & FLIES (The Small Movers) ---
-    # Weaver Ants and Fruit Flies are small.
     if label in ["Weaver Ant", "Oriental Fruit Fly"]:
         if coverage > 10.0: return False # Too big
         return True
 
     # --- RULE 6: GRAY BORER & MOTHS (The Flyers) ---
-    # Moths are roughly triangular/square.
     if label in ["Gray Borer", "Cutworm Moth", "Gray Borer Generic"]:
         if coverage > 20.0: return False # Too big
         return True
@@ -770,8 +731,8 @@ def is_detection_logical(label, box_w, box_h, frame_w, frame_h):
     return True # Default: Accept if no rules matched
 
 def process_camera_frame(frame, cam_id):
-    global last_detected_pest, last_confidence, pest_detection_timeout, \
-           ai_result_override, is_ai_processing, last_ai_request_time
+    global cam_states
+    state = cam_states[cam_id]
 
     annotated_frame = frame.copy()
     pest_found_in_this_frame = False
@@ -808,19 +769,19 @@ def process_camera_frame(frame, cam_id):
                 elif 0.25 < conf <= 0.55:
                     pest_found_in_this_frame = True
                     # Check if Gemini already identified this "Unknown"
-                    if ai_result_override:
-                        best_pest = ai_result_override
+                    if state["ai_override"]:
+                        best_pest = state["ai_override"]
                         display_text, color = f"AI: {best_pest}", (0, 255, 0)
                     else:
                         best_pest = "Unknown"
-                        display_text, color = "Analyzing..." if is_ai_processing else "Unknown", (0, 0, 255)
+                        display_text, color = "Analyzing..." if state["ai_processing"] else "Unknown", (0, 0, 255)
                         
                         # Trigger Gemini Background Thread
                         now = time.time()
-                        if not is_ai_processing and (now - last_ai_request_time > 10):
-                            last_ai_request_time = now
-                            is_ai_processing = True
-                            threading.Thread(target=start_ai_analysis_thread, args=(frame.copy(),)).start()
+                        if not state["ai_processing"] and (now - state["last_request"] > 10):
+                            state["last_request"] = now
+                            state["ai_processing"] = True
+                            threading.Thread(target=start_ai_analysis_thread, args=(frame.copy(), cam_id)).start()
 
                     cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(annotated_frame, display_text, (x1, y1-10), 
@@ -828,9 +789,9 @@ def process_camera_frame(frame, cam_id):
 
     # Persistence Logic (Memory)
     if pest_found_in_this_frame:
-        last_detected_pest = best_pest
-        last_confidence = best_conf
-        pest_detection_timeout = time.time() + (5.0 if ai_result_override else 2.0)
+        state["detected_pest"] = best_pest
+        state["confidence"] = best_conf
+        state["timeout"] = time.time() + (5.0 if state["ai_override"] else 2.0)
     
     return annotated_frame
 
@@ -875,88 +836,97 @@ def video_feed_3():
 
 @app.route('/api/start', methods=['POST'])
 def api_start():
-    global is_detection_running, last_logged_pest
+    global is_detection_running, cam_states
     is_detection_running = True
-    last_logged_pest = None 
+    for cam in cam_states:
+        cam_states[cam]["last_logged"] = None 
     return jsonify({'status': 'Detection started'})
 
 @app.route('/api/stop', methods=['POST'])
 def api_stop():
-    global is_detection_running, last_detected_pest
+    global is_detection_running, cam_states
     is_detection_running = False
-    last_detected_pest = "" 
+    for cam in cam_states:
+        cam_states[cam]["detected_pest"] = "" 
+        cam_states[cam]["ai_override"] = None
+        cam_states[cam]["ai_processing"] = False
     return jsonify({'status': 'Detection stopped'})
 
 @app.route('/api/status')
 def api_status():
-    global last_detected_pest, is_detection_running, is_ai_processing, \
-           ai_cooldown_timer, ai_result_override, last_ai_data_cache
+    global is_detection_running, cam_states
     
-    # 1. Determine Current Name (Prioritize Override from Gemini)
-    current_name = ""
-    if ai_result_override:
-        current_name = ai_result_override
-    elif last_detected_pest:
-        current_name = last_detected_pest.strip()
-    
-    response_data = {
-        "running": is_detection_running,
-        "status_text": "Stopped" if not is_detection_running else "Scanning...",
-        "pest_name": "—", "scientific_name": "—", "classification": "—",
-        "cultural": "—", "biological": "—", "sanitation": "—",
-        "mechanical": "—", "chemical": "—", "pest_photo": None,
-    }
-
     if not is_detection_running:
-        return jsonify(response_data)
+        return jsonify({"running": False, "status_text": "Stopped"})
 
-    if not current_name:
-        return jsonify(response_data)
-
-    # 2. Priority 1: LOCAL DATABASE LOOKUP
-    # This automatically pulls details if the species is in your pests_add.db
+    response_data = {"running": True, "cameras": {}}
+    
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT * FROM pests WHERE common_name = ? OR yolo_name = ? LIMIT 1", 
-                    (current_name, current_name))
-        pest_info = cur.fetchone()
-
-        if pest_info:
-            pest_dict = dict(pest_info)
-            display_name = pest_dict.get('common_name', current_name)
+        
+        for cam_id in ["CAM 1", "CAM 2", "CAM 3"]:
+            state = cam_states[cam_id]
             
-            response_data.update({
-                "status_text": f"Detected: {display_name}",
-                "pest_name": display_name,
-                "scientific_name": pest_dict.get('scientific_name', 'N/A'),
-                "classification": pest_dict.get('classification', 'N/A'),
-                "cultural": pest_dict.get('cultural_methods', '—'),
-                "biological": pest_dict.get('biological_control', '—'),
-                "sanitation": pest_dict.get('sanitation', '—'),
-                "mechanical": pest_dict.get('mechanical_control', '—'),
-                "chemical": pest_dict.get('chemical_control', '—'),
-                "pest_photo": url_for('static', filename=pest_dict.get('image')) if pest_dict.get('image') else None
-            })
-            return jsonify(response_data)
+            # Clear detection timeout per camera
+            if state["detected_pest"] and time.time() > state["timeout"]:
+                state["detected_pest"] = ""
+                state["ai_override"] = None
+                state["ai_cache"] = None
+
+            # 1. Determine Current Name (Prioritize Override from Gemini)
+            current_name = state["ai_override"] or state["detected_pest"]
+            
+            cam_res = {
+                "status_text": "Scanning...",
+                "pest_name": "—", "scientific_name": "—", "classification": "—",
+                "cultural": "—", "biological": "—", "sanitation": "—",
+                "mechanical": "—", "chemical": "—", "pest_photo": None,
+            }
+            
+            if current_name:
+                # Priority 2: SESSION CACHE (If "Unknown" but previously identified)
+                if current_name == "Unknown":
+                    if state["ai_processing"]:
+                        cam_res.update({"status_text": "🤖 AI is Analyzing...", "pest_name": "Identifying..."})
+                    elif state["ai_cache"]:
+                        cam_res.update({
+                            "status_text": f"AI Identified: {state['ai_cache']['common_name']}",
+                            "pest_name": state['ai_cache']['common_name'],
+                            "scientific_name": state['ai_cache'].get('scientific_name', 'N/A')
+                        })
+                    else:
+                        cam_res['status_text'] = "Unknown Object Detected"
+                else:
+                    # Priority 1: LOCAL DATABASE LOOKUP
+                    cur.execute("SELECT * FROM pests WHERE common_name = ? OR yolo_name = ? LIMIT 1", 
+                                (current_name, current_name))
+                    pest_info = cur.fetchone()
+                    
+                    if pest_info:
+                        pest_dict = dict(pest_info)
+                        display_name = pest_dict.get('common_name', current_name)
+                        cam_res.update({
+                            "status_text": f"Detected: {display_name}",
+                            "pest_name": display_name,
+                            "scientific_name": pest_dict.get('scientific_name', 'N/A'),
+                            "classification": pest_dict.get('classification', 'N/A'),
+                            "cultural": pest_dict.get('cultural_methods', '—'),
+                            "biological": pest_dict.get('biological_control', '—'),
+                            "sanitation": pest_dict.get('sanitation', '—'),
+                            "mechanical": pest_dict.get('mechanical_control', '—'),
+                            "chemical": pest_dict.get('chemical_control', '—'),
+                            "pest_photo": url_for('static', filename=pest_dict.get('image')) if pest_dict.get('image') else None
+                        })
+                    else:
+                        cam_res.update({"status_text": f"Detected: {current_name}", "pest_name": current_name})
+                        
+            response_data["cameras"][cam_id] = cam_res
+            
+        return jsonify(response_data)
     except Exception as e:
-        print(f"Database Error: {e}")
-
-    # 3. Priority 2: SESSION CACHE (If "Unknown" but previously identified)
-    if current_name == "Unknown":
-        if is_ai_processing:
-            response_data.update({"status_text": "🤖 AI is Analyzing...", "pest_name": "Identifying..."})
-        elif last_ai_data_cache:
-            # Re-use the last Gemini result for the current session
-            response_data.update({
-                "status_text": f"AI Identified: {last_ai_data_cache['common_name']}",
-                "pest_name": last_ai_data_cache['common_name'],
-                "scientific_name": last_ai_data_cache.get('scientific_name', 'N/A')
-            })
-        else:
-            response_data['status_text'] = "Unknown Object Detected"
-            
-    return jsonify(response_data)
+        print(f"Status Error: {e}")
+        return jsonify({"running": is_detection_running, "error": str(e)})
 
 # ================== WEB ROUTES ==================
 
@@ -1062,12 +1032,12 @@ def add_pest():
                         cultural_methods, biological_control, sanitation, mechanical_control, chemical_control, image, yolo_name)
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
                         "Native Species",
-                        (common_name, request.form.get('scientific_name', ''), 
-                         request.form.get('order_name', ''), request.form.get('family', ''), 
-                         request.form.get('classification', ''),
-                         request.form.get('cultural_methods', ''), request.form.get('biological_control', ''), 
-                         request.form.get('sanitation', ''), request.form.get('mechanical_control', ''), 
-                         request.form.get('chemical_control', ''), image_filename_to_save, common_name)
+                        common_name, request.form.get('scientific_name', ''), 
+                        request.form.get('order_name', ''), request.form.get('family', ''), 
+                        request.form.get('classification', ''),
+                        request.form.get('cultural_methods', ''), request.form.get('biological_control', ''), 
+                        request.form.get('sanitation', ''), request.form.get('mechanical_control', ''), 
+                        request.form.get('chemical_control', ''), image_filename_to_save, common_name
             ))
             conn.commit()
             flash("Pest successfully registered!", "success")
@@ -1226,7 +1196,6 @@ def pest_list():
 @app.route('/upload', methods=['GET', 'POST'])
 @restrict_url_access
 def upload():
-    # FIX 1: Initialize image_url safely at the top
     image_url = None 
 
     if request.method == 'POST':
@@ -1237,7 +1206,6 @@ def upload():
             return redirect(request.url)
 
         try:
-            # FIX 2: Use global UPLOAD_FOLDER (Removes the KeyError crash)
             filename = secure_filename(str(file.filename)) 
             filepath = os.path.join(UPLOAD_FOLDER, filename) 
             file.save(filepath)
@@ -1247,7 +1215,6 @@ def upload():
             # --- DETECTION PIPELINE ---
             detected_name = None
             
-            # Get Image Dimensions for Logic Checks
             img = cv2.imread(filepath)
             if img is not None:
                 img_h, img_w, _ = img.shape
@@ -1258,21 +1225,17 @@ def upload():
             if model:
                 results = model(filepath, conf=0.25)
                 if results and len(results) > 0 and results[0].boxes:
-                    # Find highest confidence detection
                     best_conf_index = results[0].boxes.conf.argmax()
                     class_index = int(results[0].boxes.cls[best_conf_index].item())
                     raw_label = results[0].names[class_index]
                     conf = float(results[0].boxes.conf[best_conf_index].item())
                     
-                    # FIX 3: Label Mapping (Combine Classes)
                     label = raw_label
                     if raw_label in ["Cutworm Larva", "Cutworm Moth"]: label = "Cutworm"
                     elif raw_label in ["Weaver Ant", "Weaver Ant Cluster"]: label = "Weaver Ant"
                     elif raw_label in ["Mealybug", "Mealybug Cluster"]: label = "Mealybug"
                     elif raw_label == "Gray Borer Generic": label = "Gray Borer"
 
-                    # FIX 4: Safety Nets (Filter False Positives)
-                    # Use raw_label to check specific physics (e.g., is the 'Moth' actually square?)
                     box = results[0].boxes.xyxy[best_conf_index].tolist()
                     x1, y1, x2, y2 = box
                     box_w = x2 - x1
@@ -1285,18 +1248,9 @@ def upload():
                             detected_name = "Unknown"
                     else:
                         print(f"🚫 Upload: Ignored Logical Fail for {label} ({conf:.2f})")
-                        # If physics fail (e.g., Beetle looks like a Moth but wrong shape), 
-                        # we reject YOLO and fall back to Gemini AI.
                         detected_name = None 
 
-            # Step B: Run General Model (Intruders) if nothing valid found
-            #if (not detected_name or detected_name == "Unknown") and general_model:
-                #gen_results = general_model(filepath, classes=ANIMAL_CLASSES, conf=0.60)
-                #if gen_results and len(gen_results) > 0 and gen_results[0].boxes:
-                    #detected_name = "Unknown" 
-
             # Step C: AI Fallback (Gemini)
-            # This catches the False Positives (like the Beetle) that YOLO missed/hallucinated
             if detected_name == "Unknown" or detected_name is None:
                 print("⚡ Triggering AI Analysis for Upload...")
                 ai_data = fetch_pest_info_from_ai("Unknown", image_path=filepath)
@@ -1330,7 +1284,7 @@ def upload():
             # --- DISPLAY RESULTS ---
             if detected_name:
                 formatted_name = detected_name.strip()
-                log_detection_event(formatted_name, f"uploads/{filename}", "Manual Upload")
+                log_detection_event(formatted_name, f"uploads/{filename}", "Manual Upload", camera_id="Upload")
                 conn = get_db()
                 pest_info = conn.execute(
                     "SELECT * FROM pests WHERE common_name = ? COLLATE NOCASE OR yolo_name = ? COLLATE NOCASE",
@@ -1383,7 +1337,6 @@ def detection_history():
         conn = sqlite3.connect(pest_db)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        # Fetch latest detections first
         cur.execute("SELECT * FROM history ORDER BY timestamp DESC LIMIT 50")
         history_logs = cur.fetchall()
         return render_template('detection_history.html', logs=history_logs)
@@ -1405,7 +1358,7 @@ if __name__ == '__main__':
     def release_cameras():
         global cams
         for i in cams:
-            cap = cams[i]  # Assign to local variable to fix Pylance error
+            cap = cams[i]  
             if cap is not None and cap.isOpened():
                 cap.release()
         print("Cameras released.")
