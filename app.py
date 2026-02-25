@@ -565,9 +565,16 @@ def process_unknown_pest_background(image_path, cam_id):
             cam_states[cam_id]["ai_override"] = identified_name
             cam_states[cam_id]["detected_pest"] = identified_name
             
-        else:
-            print(f"❌ AI Identification Failed for {cam_id}.")
-            cam_states[cam_id]["ai_override"] = "Unidentified Object"
+            # --- NEW: LOG THE AI DETECTION TO HISTORY ---
+            filename = os.path.basename(image_path)
+            log_detection_event(
+                pest_name=identified_name, 
+                image_path=f"uploads/{filename}", 
+                detection_type="AI Vision Fallback", 
+                camera_id=cam_id
+            )
+            # Reset the cooldown timer so YOLO doesn't immediately double-log
+            cam_states[cam_id]["last_logged"] = time.time()
             
     except Exception as e:
         print(f"❌ Critical Background Error on {cam_id}: {e}")
@@ -792,7 +799,29 @@ def process_camera_frame(frame, cam_id):
         state["detected_pest"] = best_pest
         state["confidence"] = best_conf
         state["timeout"] = time.time() + (5.0 if state["ai_override"] else 2.0)
-    
+        
+        # --- NEW: LOG LIVE DETECTIONS TO HISTORY WITH A COOLDOWN ---
+        now = time.time()
+        
+        # ONLY log if the pest is actually identified (Ignore "Unknown")
+        if best_pest and best_pest.lower() != "unknown":
+            
+            # Check if it has been 10 seconds since the last database log for this camera
+            if state["last_logged"] is None or (now - state["last_logged"] > 10.0):
+                
+                timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                snap_filename = f"hist_{cam_id.replace(' ', '')}_{timestamp_str}.jpg"
+                snap_path = os.path.join(HISTORY_FOLDER, snap_filename)
+                cv2.imwrite(snap_path, annotated_frame) 
+                
+                log_detection_event(
+                    pest_name=best_pest, 
+                    image_path=f"history/{snap_filename}", 
+                    detection_type="Local Model (YOLO)", 
+                    camera_id=cam_id
+                )
+                state["last_logged"] = now # Reset the cooldown timer
+
     return annotated_frame
 
 def generate_frames_cam1():
@@ -1282,7 +1311,8 @@ def upload():
                     return render_template('pest_upload.html', image_url=image_url)
 
             # --- DISPLAY RESULTS ---
-            if detected_name:
+            # Do not log if it's strictly "Unknown"
+            if detected_name and detected_name.lower() != "unknown":
                 formatted_name = detected_name.strip()
                 log_detection_event(formatted_name, f"uploads/{filename}", "Manual Upload", camera_id="Upload")
                 conn = get_db()
