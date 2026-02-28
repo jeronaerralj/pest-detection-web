@@ -529,6 +529,8 @@ def process_unknown_pest_background(image_path, cam_id):
             identified_name = ai_data.get('common_name').strip()
             print(f"✅ AI Identified on {cam_id}: {identified_name}")
 
+            log_detection_event(identified_name, f"uploads/{filename}", "Live AI Detection", camera_id=cam_id)
+
             # Update Session Cache
             cam_states[cam_id]["ai_cache"] = ai_data
 
@@ -769,6 +771,22 @@ def process_camera_frame(frame, cam_id):
                 if conf > 0.55:
                     pest_found_in_this_frame = True
                     best_conf, best_pest = conf, label
+
+                    now = time.time()
+                    if state["last_logged"] != label or (now - state.get("last_log_time", 0) > 30):
+                        # 1. Capture the current frame for history
+                        timestamp = int(now)
+                        img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
+                        img_path = os.path.join(HISTORY_FOLDER, img_name)
+                        cv2.imwrite(img_path, annotated_frame)
+                        
+                        # 2. Log to Database
+                        log_detection_event(label, f"history/{img_name}", "Live Detection", camera_id=cam_id)
+                        
+                        # 3. Update state to prevent immediate re-logging
+                        state["last_logged"] = label
+                        state["last_log_time"] = now
+
                     cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1-10), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -947,8 +965,15 @@ def api_status():
                             "chemical": pest_dict.get('chemical_control', '—'),
                             "pest_photo": url_for('static', filename=pest_dict.get('image')) if pest_dict.get('image') else None
                         })
-                    else:
-                        cam_res.update({"status_text": f"Detected: {current_name}", "pest_name": current_name})
+                    elif state["ai_cache"]:
+                            # Use the cache if it's not in the DB yet
+                            cam_res.update({
+                                "status_text": f"AI Identified: {state['ai_cache']['common_name']}",
+                                "pest_name": state['ai_cache']['common_name'],
+                                "scientific_name": state['ai_cache'].get('scientific_name', 'N/A'),
+                                "cultural": state['ai_cache'].get('cultural_methods', '—'),
+                                # ... update other fields from cache ...
+                            })
                         
             response_data["cameras"][cam_id] = cam_res
             
