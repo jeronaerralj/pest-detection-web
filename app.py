@@ -385,6 +385,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
        - 'Cultural Methods': Suggest habitat modification.
     4. If the subject is not a pest (e.g., Ladybug), explain why it is beneficial in the fields.
     5. Keep descriptions concise (max 2 sentences per field) to fit the UI cards.
+    6. You shall only detect pests, insects, and animals. Do not include the plant, plant disease, leaves, and non living things.
     """
 
     # --- SCENARIO A: VISION IDENTIFICATION ---
