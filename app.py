@@ -27,7 +27,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_fallback_key')
 app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOUT_SEC', '900')))
 
 # --- SERIAL CONFIGURATION ---
-SERIAL_PORT = 'COM3' # Change to your Arduino Port (e.g., /dev/ttyUSB0 on Linux)
+SERIAL_PORT = 'COM4' # Change to your Arduino Port (e.g., /dev/ttyUSB0 on Linux)
 BAUD_RATE = 9600
 arduino = None
 arduino_data = {"uv": 0, "light": "OFF", "mode": "AUTO"}
@@ -529,9 +529,13 @@ def process_unknown_pest_background(image_path, cam_id):
         if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None]:
             identified_name = ai_data.get('common_name').strip()
             print(f"✅ AI Identified on {cam_id}: {identified_name}")
+            
+            # FIX: Extract the filename from the image_path FIRST
+            filename = os.path.basename(image_path)
 
+            # Now it can safely log the event
             log_detection_event(identified_name, f"uploads/{filename}", "Live AI Detection", camera_id=cam_id)
-
+            
             # Update Session Cache
             cam_states[cam_id]["ai_cache"] = ai_data
 
@@ -540,8 +544,7 @@ def process_unknown_pest_background(image_path, cam_id):
                 with db_lock:
                     conn = sqlite3.connect(DATABASE, timeout=30) 
                     c = conn.cursor()
-                    
-                    filename = os.path.basename(image_path)
+
                     db_image_path = f"uploads/{filename}"
                     
                     # Check if it already exists to avoid duplicates
