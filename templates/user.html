@@ -8,10 +8,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap"
-    rel="stylesheet">
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
   <style>
@@ -27,10 +24,7 @@
       --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
 
-    /* Global Reset */
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       font-family: "Inter", sans-serif;
@@ -63,9 +57,7 @@
       margin: 0 0 10px 0;
     }
 
-    h1 span {
-      color: var(--primary);
-    }
+    h1 span { color: var(--primary); }
 
     p {
       font-size: 1.05rem;
@@ -73,11 +65,9 @@
       margin: 10px 0 35px 0;
     }
 
-    /* Grid Layout for Action Buttons */
     .action-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      /* 2 columns */
       gap: 20px;
       width: 100%;
     }
@@ -99,17 +89,14 @@
       gap: 10px;
     }
 
-    /* Styling the Material Icons specifically */
     .action-btn .material-icons {
       font-size: 2rem;
       display: block;
       margin-bottom: 5px;
       color: var(--text-light);
-      /* Default icon color */
       transition: color 0.2s ease;
     }
 
-    /* Hover Effects */
     .action-btn:hover {
       border-color: var(--primary);
       background-color: #f9fafb;
@@ -118,33 +105,22 @@
       color: var(--primary);
     }
 
-    /* Make icon green on hover for regular buttons */
-    .action-btn:hover .material-icons {
-      color: var(--primary);
-    }
+    .action-btn:hover .material-icons { color: var(--primary); }
 
-    /* Primary Action Style (Green Background) */
     .action-btn.primary {
       background-color: var(--primary);
       color: white;
       border-color: var(--primary);
     }
 
-    /* Ensure icon is white on the primary button */
-    .action-btn.primary .material-icons {
-      color: white;
-    }
+    .action-btn.primary .material-icons { color: white; }
 
     .action-btn.primary:hover {
       background-color: var(--primary-hover);
       color: white;
     }
 
-    /* Cancel Button - Full Width */
-    .cancel-container {
-      margin-top: 25px;
-      width: 100%;
-    }
+    .cancel-container { margin-top: 25px; width: 100%; }
 
     .btn-cancel {
       display: inline-block;
@@ -157,52 +133,19 @@
       transition: color 0.2s;
     }
 
-    .btn-cancel:hover {
-      background-color: #f3f4f6;
-      color: #374151;
-    }
+    .btn-cancel:hover { background-color: #f3f4f6; color: #374151; }
 
-    /* Animations */
     @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    /* --- Mobile Responsive Styles --- */
     @media (max-width: 600px) {
-      .dashboard-card {
-        padding: 30px 20px;
-      }
-
-      h1 {
-        font-size: 1.75rem;
-      }
-
-      .action-grid {
-        grid-template-columns: 1fr;
-        /* Stack vertically on mobile */
-        gap: 15px;
-      }
-
-      .action-btn {
-        flex-direction: row;
-        /* Horizontal layout on mobile */
-        justify-content: flex-start;
-        padding: 20px;
-        gap: 15px;
-      }
-
-      .action-btn .material-icons {
-        margin-bottom: 0;
-        font-size: 1.5rem;
-      }
+      .dashboard-card { padding: 30px 20px; }
+      h1 { font-size: 1.75rem; }
+      .action-grid { grid-template-columns: 1fr; gap: 15px; }
+      .action-btn { flex-direction: row; justify-content: flex-start; padding: 20px; gap: 15px; }
+      .action-btn .material-icons { margin-bottom: 0; font-size: 1.5rem; }
     }
   </style>
 </head>
@@ -218,17 +161,14 @@
         <span class="material-icons">videocam</span>
         Live Detection
       </a>
-
       <a href="/upload" class="action-btn">
         <span class="material-icons">cloud_upload</span>
         Upload Image
       </a>
-
       <a href="/library" class="action-btn">
         <span class="material-icons">menu_book</span>
         Pest Library
       </a>
-
       <a href="/history" class="action-btn">
         <span class="material-icons">format_list_bulleted</span>
         Detection History
@@ -240,6 +180,82 @@
     </div>
   </div>
 
-</body>
+  <style>
+    .manual-modal-overlay { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+    .manual-modal-content { background-color: #fff; margin: 5vh auto; padding: 0; border-radius: 16px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); font-family: "Inter", sans-serif; color: #1f2937; }
+    .manual-header { background: #2e7d32; color: white; padding: 20px 30px; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .manual-header h2 { margin: 0; font-family: "Poppins", sans-serif; font-size: 1.4rem; display: flex; align-items: center; gap: 10px; }
+    .manual-close-btn { background: none; border: none; color: white; font-size: 28px; cursor: pointer; line-height: 1; transition: opacity 0.2s; }
+    .manual-close-btn:hover { opacity: 0.7; }
+    .manual-body { padding: 30px; text-align: left; }
+    .manual-section { margin-bottom: 25px; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; }
+    .manual-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .manual-section h3 { color: #2e7d32; font-size: 1.2rem; margin: 0 0 10px 0; display: flex; align-items: center; gap: 8px; font-family: "Poppins", sans-serif; }
+    .manual-section p { margin: 0 0 10px 0; line-height: 1.6; font-size: 0.95rem; color: #4b5563; }
+    .manual-section ul { margin: 0; padding-left: 20px; color: #4b5563; font-size: 0.95rem; line-height: 1.6; }
+    .manual-section li { margin-bottom: 6px; }
+    .manual-fab { position: fixed; bottom: 30px; right: 30px; background-color: #2e7d32; color: white; border: none; border-radius: 50px; padding: 12px 20px; font-family: "Poppins", sans-serif; font-weight: 600; font-size: 1rem; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(46, 125, 50, 0.4); cursor: pointer; z-index: 9998; transition: transform 0.2s, background-color 0.2s; }
+    .manual-fab:hover { transform: translateY(-3px); background-color: #1b5e20; }
+  </style>
 
+  <button class="manual-fab" onclick="openUserManual()">
+    <span class="material-icons">menu_book</span> Guide
+  </button>
+
+  <div id="pinePestifyManual" class="manual-modal-overlay" onclick="closeManualOutside(event)">
+    <div class="manual-modal-content">
+      <div class="manual-header">
+        <h2><span class="material-icons">menu_book</span> PinePestify Guide</h2>
+        <button class="manual-close-btn" onclick="closeUserManual()">&times;</button>
+      </div>
+      <div class="manual-body">
+        <div class="manual-section">
+          <h3><span class="material-icons">videocam</span> 1. Live Detection Dashboard</h3>
+          <p>The main dashboard monitors your crop environment using camera feeds.</p>
+          <ul>
+            <li><b>Cameras:</b> Toggles the live video feeds on and off.</li>
+            <li><b>Start Detect:</b> Activates the AI to draw bounding boxes around detected bugs.</li>
+            <li><b>Unknown Pests:</b> If an unregistered pest is detected, the system captures it, sends it to an external AI for analysis, and logs the new data.</li>
+            <li><b>Reload Model:</b> Click this after "Active Learning" completes to update the system with new pest intelligence.</li>
+          </ul>
+        </div>
+        <div class="manual-section">
+          <h3><span class="material-icons">router</span> 2. Hardware Control</h3>
+          <p>From the dashboard, you can control the connected Arduino hardware.</p>
+          <ul>
+            <li><b>UV Index:</b> Displays real-time UV sensor data.</li>
+            <li><b>Relay Status:</b> Shows if the physical relay is ON or OFF.</li>
+            <li><b>Force ON/OFF:</b> Manually override the relay state.</li>
+            <li><b>Auto Mode:</b> Returns control to the system's automated sensor logic.</li>
+          </ul>
+        </div>
+        <div class="manual-section">
+          <h3><span class="material-icons">cloud_upload</span> 3. Image Upload</h3>
+          <p>Upload a clear photo of an insect. The AI will instantly analyze the image, identify the species, and generate a comprehensive treatment plan including cultural, biological, and chemical methods.</p>
+        </div>
+        <div class="manual-section">
+          <h3><span class="material-icons">library_books</span> 4. Library & History</h3>
+          <ul>
+            <li><b>Pest Library:</b> A searchable database of known pests and their specific treatments.</li>
+            <li><b>Detection History:</b> A visual log of every pest detected by the live cameras or uploaded manually, complete with timestamps.</li>
+          </ul>
+        </div>
+        <div class="manual-section">
+          <h3><span class="material-icons">admin_panel_settings</span> 5. Admin Features</h3>
+          <p>Users logged in as Administrators have access to data management tools.</p>
+          <ul>
+            <li><b>Add New Pest:</b> Manually create a database entry for a new pest.</li>
+            <li><b>Pest List:</b> A spreadsheet view allowing admins to edit pest details inline or upload new reference images.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openUserManual() { document.getElementById('pinePestifyManual').style.display = 'block'; }
+    function closeUserManual() { document.getElementById('pinePestifyManual').style.display = 'none'; }
+    function closeManualOutside(event) { if (event.target === document.getElementById('pinePestifyManual')) closeUserManual(); }
+  </script>
+  </body>
 </html>
