@@ -88,6 +88,7 @@ def control_light():
 GENAI_API_KEY = os.getenv('GENAI_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY') 
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN') 
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY') # Added OpenRouter Key
 
 if not GENAI_API_KEY:
     print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
@@ -99,7 +100,10 @@ else:
         print(f"Error configuring Gemini: {e}")
 
 if not GROQ_API_KEY:
-    print("⚠️ WARNING: GROQ_API_KEY not found (Text fallback disabled)")
+    print("⚠️ WARNING: GROQ_API_KEY not found (Groq fallback disabled)")
+
+if not OPENROUTER_API_KEY:
+    print("⚠️ WARNING: OPENROUTER_API_KEY not found (OpenRouter fallback disabled)")
 
 if not GITHUB_TOKEN:
     print("⚠️ WARNING: GITHUB_TOKEN not found (GitHub Vision fallback disabled)")
@@ -125,7 +129,7 @@ STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
 UPLOAD_FOLDER = os.path.join(STATIC_FOLDER, 'uploads')
 HISTORY_FOLDER = os.path.join(STATIC_FOLDER, 'history') 
 
-# --- NEW: ACTIVE LEARNING DIRECTORIES ---
+# --- ACTIVE LEARNING DIRECTORIES ---
 DATASET_DIR = os.path.join(BASE_DIR, 'dataset')
 DATASET_IMG_DIR = os.path.join(DATASET_DIR, 'images')
 DATASET_LBL_DIR = os.path.join(DATASET_DIR, 'labels')
@@ -367,7 +371,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         "type": "Non-Native Species",
         "common_name": "Standard Name",
         "scientific_name": "Latin Name",
-        "classification": "Insect/Fungi/etc",
+        "classification": "Insect/Animal", # Removed Fungi/Etc to keep it strict
         "family": "Family Name",
         "order_name": "Order Name",
         "cultural_methods": "Preventative farming practices 1-2 sentences",
@@ -377,33 +381,26 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         "chemical_control": "Pesticides or chemical deterrents 1-2 sentence"
     }
 
-    base_prompt = f"""
-    You are an expert Agronomist and AI Pest Specialist for Pineapple Farming.
-    Analyze the subject.
-    
-    TASK: Identify the species and provide management details for a Pineapple Farm.
+    # --- THE STRICT VISION PROMPT ---
+    vision_prompt = f"""
+    You are an expert AI Pest Specialist for Pineapple Farming. 
+    Analyze the image and identify the specific INSECT, BUG, or ANIMAL PEST.
     
     CRITICAL RULES:
-    1. Return valid JSON only. No markdown formatting.
-    2. You MUST fill every field in this structure: {json.dumps(json_structure)}
-    3. If the subject is an animal (e.g., Cat, Bird, Rat):
-       - 'Chemical Control': Suggest repellents or 'None needed'.
-       - 'Mechanical Control': Suggest fences or traps.
-       - 'Cultural Methods': Suggest habitat modification.
-    4. If the subject is not a pest (e.g., Ladybug), explain why it is beneficial in the fields.
-    5. Keep descriptions concise (max 2 sentences per field) to fit the UI cards.
-    6. You shall only detect pests, insects, and animals. Do not include the plant, plant disease, leaves, and non living things.
+    1. DO NOT identify plants, leaves, crops, or inanimate objects.
+    2. DO NOT identify plant diseases, viruses, fungi, rot, or wilt.
+    3. If the subject is a plant, leaf, crop, or plant disease, you MUST return "common_name": "N/A".
+    4. Return ONLY valid JSON in this exact format: {json.dumps(json_structure)}
     """
 
     if (pest_name.lower() in ["unknown", "negative"]) and image_path:
         print(f"AI Vision: Analyzing image...")
         
+        # 1. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
             gemini_candidates = ['gemini-2.5-flash', 'gemini-exp-1206', 'gemini-flash-latest']
             try:
                 img = PIL.Image.open(image_path)
-                vision_prompt = f"Analyze this image. Identify the specific pest. Do not analyze if it is a plant or plant disease. Return JSON: {json.dumps(json_structure)}. If uncertain, return common_name: N/A."
-
                 for model_name in gemini_candidates:
                     try:
                         print(f"   ...Trying Gemini: {model_name}")
@@ -419,50 +416,95 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
             except Exception as e:
                 print(f"❌ Gemini Vision Critical Fail: {e}")
 
+        # 2. Try OpenRouter Free Vision (Fallback 1)
+        if OPENROUTER_API_KEY:
+            print("   👉 Switching to OpenRouter Free Vision...")
+            try:
+                with open(image_path, "rb") as image_file:
+                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
+                response = client.chat.completions.create(
+                    model="meta-llama/llama-3.2-11b-vision-instruct:free",
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": vision_prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                        ]
+                    }],
+                    temperature=0,
+                )
+                content = response.choices[0].message.content
+                if content: return json.loads(clean_json_text(content))
+            except Exception as e: print(f"OpenRouter failed: {e}")
+
+        # 3. Try Groq Vision (Fallback 2)
+        if GROQ_API_KEY:
+            print("   👉 Switching to Groq Vision...")
+            try:
+                client = Groq(api_key=GROQ_API_KEY)
+                with open(image_path, "rb") as image_file:
+                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+                chat_completion = client.chat.completions.create(
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": vision_prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                        ]
+                    }],
+                    model="meta-llama/llama-4-scout-17b-16e-instruct",
+                    temperature=0,
+                    response_format={"type": "json_object"} 
+                )
+                content = chat_completion.choices[0].message.content
+                if content: return json.loads(clean_json_text(content))
+            except Exception as e: print(f"Groq Vision failed: {e}")
+
+        # 4. Try GitHub Models (Fallback 3)
         if GITHUB_TOKEN:
-            print("   👉 Switching to GitHub Models (Llama 3.2 Vision)...")
+            print("   👉 Switching to GitHub Models...")
             try:
                 with open(image_path, "rb") as image_file:
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
                 client = OpenAI(base_url="https://models.inference.ai.azure.com", api_key=GITHUB_TOKEN)
-
                 response = client.chat.completions.create(
                     messages=[{
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": f"Identify pest. Return JSON: {json.dumps(json_structure)}"},
+                            {"type": "text", "text": vision_prompt},
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
                         ],
                     }],
                     model="Llama-3.2-90B-Vision-Instruct",
                     temperature=0,
                 )
-
                 content = response.choices[0].message.content
-                if content:
-                    return json.loads(clean_json_text(content))
-            except Exception as e:
-                print(f"GitHub Models failed: {e}")
+                if content: return json.loads(clean_json_text(content))
+            except Exception as e: print(f"GitHub Models failed: {e}")
 
+        # 5. Try Ollama (Local Backup)
         print("Switching to Local Ollama...")
         try:
             response = ollama.chat(
                 model='llama3.2-vision',
-                messages=[{
-                    'role': 'user',
-                    'content': f"Identify pest. Return JSON: {json.dumps(json_structure)}",
-                    'images': [image_path]
-                }]
+                messages=[{'role': 'user', 'content': vision_prompt, 'images': [image_path]}]
             )
             return json.loads(clean_json_text(response['message']['content']))
-        except Exception as e:
-            print(f"Ollama failed (Is it running?): {e}")
+        except Exception as e: print(f"Ollama failed: {e}")
 
         print("All AI Vision models failed.")
         return None
 
-    system_prompt = f"Expert Pineapple agronomy. Details for '{pest_name}'. JSON format: {json.dumps(json_structure)}."
+    # --- SCENARIO B: TEXT LOOKUP ---
+    system_prompt = f"""
+    You are an expert Pineapple agronomy AI. Provide management details for the pest '{pest_name}'.
+    CRITICAL: If '{pest_name}' is a plant, crop, leaf, or plant disease, return "common_name": "N/A".
+    Output ONLY valid JSON: {json.dumps(json_structure)}
+    """
 
     if GENAI_API_KEY:
         try:
@@ -475,22 +517,17 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         try:
             client = Groq(api_key=GROQ_API_KEY)
             chat_completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "Output JSON only."},
-                    {"role": "user", "content": system_prompt}
-                ],
+                messages=[{"role": "system", "content": "Output JSON only."}, {"role": "user", "content": system_prompt}],
                 model="llama-3.3-70b-versatile",
                 temperature=0,
                 response_format={"type": "json_object"} 
             )
             content = chat_completion.choices[0].message.content
-            if content:
-                return json.loads(clean_json_text(content))
+            if content: return json.loads(clean_json_text(content))
         except Exception: pass
         
     return None
 
-# --- NEW: Thread parameters updated to accept bounding box coordinates ---
 def start_ai_analysis_thread(frame_image, cam_id, x1, y1, x2, y2, frame_w, frame_h):
     try:
         temp_filename = f"unknown_{cam_id.replace(' ', '')}_{int(time.time())}.jpg"
@@ -509,6 +546,16 @@ def process_unknown_pest_background(image_path, cam_id, x1, y1, x2, y2, frame_w,
     print(f"🚀 Background Thread Started: Analyzing Unknown Pest on {cam_id}...")
     try:
         ai_data = fetch_pest_info_from_ai("Unknown", image_path=image_path)
+
+        # --- NEW: HARDCODED SAFETY FILTER ---
+        if ai_data:
+            c_name = str(ai_data.get('common_name', '')).lower()
+            cls_name = str(ai_data.get('classification', '')).lower()
+            forbidden_words = ['disease', 'wilt', 'rot', 'virus', 'fungus', 'plant', 'leaf', 'pineapple', 'crop']
+            
+            if any(word in c_name or word in cls_name for word in forbidden_words):
+                print(f"🚫 BLOCKED: AI attempted to log a plant/disease ({c_name}). Ignored.")
+                ai_data['common_name'] = "N/A" # Force it to fail the next check
 
         if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None]:
             identified_name = ai_data.get('common_name').strip()
@@ -559,7 +606,7 @@ def process_unknown_pest_background(image_path, cam_id, x1, y1, x2, y2, frame_w,
             cam_states[cam_id]["last_log_time"] = time.time()
             
             # ==============================================================
-            # --- NEW: ACTIVE LEARNING PIPELINE (DATA ACCUMULATION) ---
+            # --- ACTIVE LEARNING PIPELINE (DATA ACCUMULATION) ---
             # ==============================================================
             try:
                 class_id = get_or_create_class_id(identified_name)
@@ -873,26 +920,39 @@ def video_feed_3():
 
 # ================== API ROUTES ==================
 
-# --- NEW ROUTE: Hot-Swap Model after Active Learning Training ---
-@app.route('/api/reload_model', methods=['POST'])
-def api_reload_model():
-    global model, frame_lock
+# --- ROUTE: Active Learning Maintenance Controls ---
+@app.route('/api/maintenance/pause', methods=['POST'])
+def api_maintenance_pause():
+    """Temporarily disables YOLO inference to free up CPU for background training."""
+    global is_detection_running
+    is_detection_running = False
+    print("⏸️ SYSTEM PAUSED: CPU freed for background training.")
+    return jsonify({'success': True, 'status': 'AI Inference Paused'})
+
+@app.route('/api/maintenance/resume', methods=['POST'])
+def api_maintenance_resume():
+    """Hot-swaps the newly trained model and resumes live detection."""
+    global is_detection_running, model, frame_lock
     try:
         new_model_path = request.json.get('model_path', 'new_best.pt')
-        
         with frame_lock:
             if os.path.exists(new_model_path):
                 print(f"🔄 Hot-swapping to updated model: {new_model_path}")
                 model = YOLO(new_model_path)
-                return jsonify({"success": True, "message": f"Successfully loaded new model!"})
             else:
-                # Fallback to load default
-                print("🔄 Re-loading default native.pt")
-                model = YOLO('native.pt')
-                return jsonify({"success": True, "message": "Reverted back to default model."})
-                
+                print("⚠️ New model not found. Resuming with current model.")
+        
+        is_detection_running = True
+        
+        # Reset cooldowns so it doesn't immediately log old pests
+        for cam in cam_states:
+            cam_states[cam]["last_logged"] = None 
+            cam_states[cam]["last_log_time"] = 0 
+            
+        print("▶️ SYSTEM RESUMED: New brain loaded, live detection active.")
+        return jsonify({"success": True, "message": "Resumed successfully"})
     except Exception as e:
-        print(f"❌ Model reload failed: {e}")
+        is_detection_running = True # Ensure it turns back on even if swap fails
         return jsonify({"success": False, "error": str(e)})
 
 @app.route('/api/start', methods=['POST'])
@@ -1313,10 +1373,21 @@ def upload():
                 print("⚡ Triggering AI Analysis for Upload...")
                 ai_data = fetch_pest_info_from_ai("Unknown", image_path=filepath)
                 
-                if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None]:
+                # --- NEW: HARDCODED SAFETY FILTER ---
+                if ai_data:
+                    c_name = str(ai_data.get('common_name', '')).lower()
+                    cls_name = str(ai_data.get('classification', '')).lower()
+                    forbidden_words = ['disease', 'wilt', 'rot', 'virus', 'fungus', 'plant', 'leaf', 'pineapple', 'crop']
+                    
+                    if any(word in c_name or word in cls_name for word in forbidden_words):
+                        print(f"🚫 BLOCKED: AI attempted to log a plant/disease ({c_name}). Ignored.")
+                        ai_data['common_name'] = "N/A" 
+                
+                if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None, "n/a"]:
                     detected_name = ai_data.get('common_name')
                     
                     with db_lock:
+                    # ... (KEEP THE REST OF YOUR EXISTING CODE BELOW THIS UNCHANGED) ...
                         conn = get_db()
                         c = conn.cursor()
                         c.execute("SELECT id FROM pests WHERE common_name = ?", (detected_name,))
