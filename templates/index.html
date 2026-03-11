@@ -496,6 +496,11 @@
                     <button onclick="openModal()" class="btn-analytics">
                         <span class="material-icons-round">insights</span> Analytics
                     </button>
+                    
+                    <button id="reloadModelBtn" class="btn-outline" onclick="reloadModel()">
+                        <span class="material-icons-round">autorenew</span> Reload Model
+                    </button>
+                    
                     <button id="cancelBtn" class="btn-danger">
                         <span class="material-icons-round">power_settings_new</span> Stop All
                     </button>
@@ -728,6 +733,37 @@
                 });
                 fetchLightStatus(); 
             } catch (e) { alert("Failed to send command to Arduino"); }
+        }
+
+        // --- NEW: RELOAD MODEL ---
+        async function reloadModel() {
+            const btn = document.getElementById("reloadModelBtn");
+            const originalText = btn.innerHTML;
+            
+            // Visual feedback that something is loading
+            btn.innerHTML = '<span class="material-icons-round">hourglass_empty</span> Loading...';
+            btn.disabled = true;
+            
+            try {
+                // Pointing to new_best.pt assuming your offline training outputs to this file
+                const res = await fetch('/api/reload_model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_path: 'new_best.pt' })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert("Failed to reload model: " + data.error);
+                }
+            } catch (e) {
+                alert("Error connecting to server.");
+            }
+            
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
 
         // --- PEST STATUS LOGIC ---
