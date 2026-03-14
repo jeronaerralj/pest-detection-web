@@ -123,6 +123,87 @@
         .card:hover { box-shadow: var(--shadow-hover); }
         .card:last-child { margin-bottom: 0; }
 
+        /* --- MODAL STYLES --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(6px);
+        }
+        .modal-content {
+            background-color: var(--bg-card);
+            margin: 15% auto;
+            padding: 2rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hover);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            animation: modalFadeIn 0.3s ease;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal h2 {
+            font-family: "Poppins", sans-serif;
+            color: var(--text-main);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        .modal p {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+        }
+        .modal input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            transition: border-color 0.2s;
+        }
+        .modal input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .modal-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modal-btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        .modal-btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        .modal-btn-secondary {
+            background-color: #f3f4f6;
+            color: var(--text-main);
+        }
+        .modal-btn-secondary:hover {
+            background-color: #e5e7eb;
+        }
+
         .card-header {
             display: flex;
             align-items: center;
@@ -325,7 +406,7 @@
                 <path d="M19 8h-1.81c-.45-.78-1.07-1.45-1.82-1.96l.93-.93c.39-.39.39-1.02 0-1.41-.39-.39-1.02-.39-1.41 0l-1.47 1.47C12.96 5.06 12.49 5 12 5s-.96.06-1.41.17L9.11 3.7c-.39-.39-1.02-.39-1.41 0-.39.39-.39 1.02 0 1.41l.93.93c-.75.51-1.37 1.18-1.82 1.96H5c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h1v2c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2v-2h1c1.1 0 2-.9 2-2v-2h1c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 12H11v-2h2v2zm0-4H11v-2h2v2zm0-4H11V8h2v4z"/>
             </svg>
             <div>
-                <h1>PINEPESTIFY <span>AI</span></h1>
+                <h1>🍍 PINEPESTIFY <span>AI</span></h1>
                 <span class="brand-subtitle">Monitoring System</span>
             </div>
         </div>
@@ -406,6 +487,8 @@
                 <div class="status" id="system-status-box"><span id="status-text">System Ready</span></div>
                 <div class="control-grid">
                     <button id="startBtn" class="btn-primary"><span class="material-icons-round">play_arrow</span> Start Detect</button>
+                    <button onclick="testDetection()" style="margin-left: 10px; background: orange; color: white; border: none; padding: 10px; border-radius: 5px;">TEST DETECTION</button>
+                    <button onclick="debugStatus()" style="margin-left: 10px; background: purple; color: white; border: none; padding: 10px; border-radius: 5px;">DEBUG</button>
                     <button id="cameraToggleBtn" class="btn-outline"><span class="material-icons-round">switch_video</span> Cameras</button>
                     <button onclick="openModal()" class="btn-analytics"><span class="material-icons-round">insights</span> Analytics</button>
                     <button id="reloadModelBtn" class="btn-outline" onclick="reloadModel()"><span class="material-icons-round">autorenew</span> Reload Model</button>
@@ -562,6 +645,13 @@
             document.getElementById('clock').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         }, 1000);
 
+        // Debug: Check if modal elements exist
+        setTimeout(() => {
+            const notificationModal = document.getElementById('notificationModal');
+            const emailModal = document.getElementById('emailModal');
+            const startBtn = document.getElementById('startBtn');
+        }, 1000);
+
         const cam1 = document.getElementById("camera-img-1");
         const cam2 = document.getElementById("camera-img-2");
         const cam3 = document.getElementById("camera-img-3");
@@ -626,6 +716,13 @@
                 cameraBtn.innerHTML = '<span class="material-icons-round">videocam_off</span> Turn Off';
                 cameraBtn.classList.add("btn-primary");
                 statusText.textContent = "Cameras Active";
+                
+                // Show notification modal after camera is turned on
+                setTimeout(() => {
+                    notificationChoice = null;
+                    userEmail = null;
+                    showNotificationModal();
+                }, 1000); // Small delay to let camera feeds load
             } else {
                 cam1.src = ""; cam2.src = ""; cam3.src = "";
                 cameraBtn.innerHTML = '<span class="material-icons-round">switch_video</span> Turn On';
@@ -635,28 +732,120 @@
             }
         });
 
+        let notificationChoice = null;
+        let userEmail = null;
+
+        function showNotificationModal() {
+            const modal = document.getElementById('notificationModal');
+            modal.style.display = 'block';
+        }
+
+        function closeNotificationModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+
+        function showEmailModal() {
+            document.getElementById('emailModal').style.display = 'block';
+        }
+
+        function closeEmailModal() {
+            document.getElementById('emailModal').style.display = 'none';
+            document.getElementById('emailInput').value = '';
+        }
+
+        function handleNotificationChoice(choice) {
+            notificationChoice = choice;
+            closeNotificationModal();
+            if (choice) {
+                showEmailModal();
+            } else {
+                startDetection();
+            }
+        }
+
+        function handleEmailSubmit() {
+            const email = document.getElementById('emailInput').value.trim();
+            if (!email) {
+                alert("Please enter a valid email address.");
+                return;
+            }
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert("Please enter a valid email address.");
+                return;
+            }
+            userEmail = email;
+            closeEmailModal();
+            startDetection();
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const notificationModal = document.getElementById('notificationModal');
+            const emailModal = document.getElementById('emailModal');
+            if (event.target === notificationModal) {
+                closeNotificationModal();
+            }
+            if (event.target === emailModal) {
+                closeEmailModal();
+            }
+        }
+
+        // Handle Enter key in email input
+        document.getElementById('emailInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleEmailSubmit();
+            }
+        });
+
+        async function startDetection() {
+            const payload = userEmail ? { email: userEmail } : {};
+            await fetch("/api/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            detecting = true; 
+            detectionBtn.innerHTML = '<span class="material-icons-round">stop</span> Stop Detect';
+            detectionBtn.style.backgroundColor = "#ef4444";
+            statusText.textContent = "Detecting..."; pollInterval = setInterval(fetchDetectionStatus, 1000);
+        }
+
         detectionBtn.addEventListener("click", async () => {
             if (!cameraOn && !detecting) return alert("Please turn on the camera first.");
             if (!detecting) {
-                await fetch("/api/start", { method: "POST" });
-                detecting = true; 
-                detectionBtn.innerHTML = '<span class="material-icons-round">stop</span> Stop Detect';
-                detectionBtn.style.backgroundColor = "#ef4444";
-                statusText.textContent = "Detecting..."; pollInterval = setInterval(fetchDetectionStatus, 1000);
+                // Check if user has made notification choice
+                if (notificationChoice === null) {
+                    // Show modal if choice not made yet
+                    showNotificationModal();
+                } else {
+                    // Start detection directly if choice already made
+                    startDetection();
+                }
             } else {
                 stopDetection();
             }
         });
 
-        async function stopDetection() {
-            await fetch("/api/stop", { method: "POST" });
-            detecting = false; 
-            detectionBtn.innerHTML = '<span class="material-icons-round">play_arrow</span> Start Detect';
-            detectionBtn.style.backgroundColor = "";
-            statusText.textContent = "Stopped"; clearInterval(pollInterval); resetCards();
-            document.getElementById("badge-cam1").style.background = "rgba(15,23,42,0.75)";
-            document.getElementById("badge-cam2").style.background = "rgba(15,23,42,0.75)";
-            document.getElementById("badge-cam3").style.background = "rgba(15,23,42,0.75)";
+        async function testDetection() {
+            try {
+                const response = await fetch('/api/test_detection', { method: 'POST' });
+                const result = await response.json();
+                alert(`Test Result:\nModel Loaded: ${result.model_loaded}\nSuccess: ${result.success}\nMessage: ${result.message}`);
+            } catch (error) {
+                alert('Test failed: ' + error.message);
+            }
+        }
+
+        async function debugStatus() {
+            try {
+                const response = await fetch('/api/debug');
+                const result = await response.json();
+                alert(`Debug Info:\nModel Loaded: ${result.model_loaded}\nDetection Running: ${result.detection_running}\nCameras: ${JSON.stringify(result.cameras, null, 2)}`);
+            } catch (error) {
+                alert('Debug failed: ' + error.message);
+            }
         }
 
         cancelBtn.addEventListener("click", () => {
@@ -829,5 +1018,30 @@
             window.location.href = `/api/analytics/export-csv?start=${start}&end=${end}`;
         }
     </script>
+
+    <!-- Custom Modals -->
+    <div id="notificationModal" class="modal">
+        <div class="modal-content">
+            <h2>🍍 Pest Detection Alerts</h2>
+            <p>Would you like to receive an update if a pest is detected?</p>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-primary" onclick="handleNotificationChoice(true)">Yes</button>
+                <button class="modal-btn modal-btn-secondary" onclick="handleNotificationChoice(false)">No</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="emailModal" class="modal">
+        <div class="modal-content">
+            <h2>📧 Email Address</h2>
+            <p>Please input your email address for notifications:</p>
+            <input type="email" id="emailInput" placeholder="your.email@example.com" required>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-primary" onclick="handleEmailSubmit()">OK</button>
+                <button class="modal-btn modal-btn-secondary" onclick="closeEmailModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
