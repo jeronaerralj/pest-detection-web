@@ -26,6 +26,19 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_fallback_key')
 app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOUT_SEC', '900')))
 
+PEST_ALIASES = {
+    "Mealybug": "Pineapple Mealybug",
+    "mealybug": "Pineapple Mealybug",
+    "mealy bug": "Pineapple Mealybug",
+    "Giant African Snail": "Giant African Land Snail",
+    "African Snail": "Giant African Land Snail",
+    "Oryctes Rhinoceros Beetle": "Rhinoceros Beetle",
+    "Coconut Rhinoceros Beetle": "Rhinoceros Beetle",
+    "Fruit Fly": "Oriental Fruit Fly",
+    "Cut worm": "Cutworm",
+    "Coconut Slug Caterpillar": "Slug Caterpillar"
+}
+
 # --- SERIAL CONFIGURATION ---
 SERIAL_PORT = 'COM3' # Change to your Arduino Port (e.g., /dev/ttyUSB0 on Linux)
 BAUD_RATE = 9600
