@@ -898,7 +898,7 @@ def process_camera_frame(frame, cam_id):
                         continue
 
                     # Scenario A: High Confidence Known Pest
-                    if conf > 0.55:
+                    if conf > 0.70:
                         pest_found_in_this_frame = True
                         best_conf, best_pest = conf, label
 
@@ -917,7 +917,7 @@ def process_camera_frame(frame, cam_id):
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                     
                     # Scenario B: Hybrid Check (Low Confidence + Movement = Unknown)
-                    elif 0.15 < conf <= 0.55:
+                    elif 0.15 < conf <= 0.70:
                         is_moving_anomaly = False
                         for (mx1, my1, mx2, my2) in moving_boxes:
                             if mx1 < x2 and mx2 > x1 and my1 < y2 and my2 > y1:
