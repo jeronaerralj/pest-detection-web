@@ -30,13 +30,18 @@ PEST_ALIASES = {
     "Mealybug": "Pineapple Mealybug",
     "mealybug": "Pineapple Mealybug",
     "mealy bug": "Pineapple Mealybug",
+    "Mealybug Cluster": "Pineapple Mealybug", # Added
     "Giant African Snail": "Giant African Land Snail",
     "African Snail": "Giant African Land Snail",
     "Oryctes Rhinoceros Beetle": "Rhinoceros Beetle",
     "Coconut Rhinoceros Beetle": "Rhinoceros Beetle",
     "Fruit Fly": "Oriental Fruit Fly",
     "Cut worm": "Cutworm",
-    "Coconut Slug Caterpillar": "Slug Caterpillar"
+    "Cutworm Larva": "Cutworm",
+    "Cutworm Moth": "Cutworm",
+    "Coconut Slug Caterpillar": "Slug Caterpillar",
+    "Weaver Ant Cluster": "Weaver Ant",
+    "Gray Borer Generic": "Gray Borer"
 }
 
 # --- SERIAL CONFIGURATION ---
@@ -772,10 +777,8 @@ def process_camera_frame(frame, cam_id):
                 conf = float(box.conf[0].item())
                 raw_label = r.names[cls_id]
                 
-                # Apply your mapping (e.g., merging clusters or life stages)
-                label = raw_label
-                if "Cutworm" in raw_label: label = "Cutworm"
-                elif "Weaver Ant" in raw_label: label = "Weaver Ant"
+                # Apply mapping from the global dictionary
+                label = PEST_ALIASES.get(raw_label, raw_label)
                 
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
@@ -1298,11 +1301,8 @@ def upload():
                     raw_label = results[0].names[class_index]
                     conf = float(results[0].boxes.conf[best_conf_index].item())
                     
-                    label = raw_label
-                    if raw_label in ["Cutworm Larva", "Cutworm Moth"]: label = "Cutworm"
-                    elif raw_label in ["Weaver Ant", "Weaver Ant Cluster"]: label = "Weaver Ant"
-                    elif raw_label in ["Mealybug", "Mealybug Cluster"]: label = "Mealybug"
-                    elif raw_label == "Gray Borer Generic": label = "Gray Borer"
+                    # Apply mapping from the global dictionary
+                    label = PEST_ALIASES.get(raw_label, raw_label)
 
                     box = results[0].boxes.xyxy[best_conf_index].tolist()
                     x1, y1, x2, y2 = box
