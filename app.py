@@ -892,16 +892,14 @@ def process_camera_frame(frame, cam_id):
                 raw_label = r.names[cls_id]
                 
                 # Apply your mapping (e.g., merging clusters or life stages)
-                label = raw_label
-                if "Cutworm" in raw_label: label = "Cutworm"
-                elif "Weaver Ant" in raw_label: label = "Weaver Ant"
+                label = PEST_ALIASES.get(raw_label, raw_label)
                 
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
                     continue
 
                     # Scenario A: High Confidence Known Pest
-                    if conf > 0.55:
+                    if conf > 0.70:
                         pest_found_in_this_frame = True
                         best_conf, best_pest = conf, label
 
@@ -920,7 +918,7 @@ def process_camera_frame(frame, cam_id):
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                     
                     # Scenario B: Hybrid Check (Low Confidence + Movement = Unknown)
-                    elif 0.15 < conf <= 0.55:
+                    elif 0.15 < conf <= 0.70:
                         is_moving_anomaly = False
                         for (mx1, my1, mx2, my2) in moving_boxes:
                             if mx1 < x2 and mx2 > x1 and my1 < y2 and my2 > y1:
@@ -1451,9 +1449,9 @@ def upload():
                     box_h = y2 - y1
                     
                     if is_detection_logical(raw_label, box_w, box_h, img_w, img_h):
-                        if conf > 0.55:
+                        if conf > 0.70:
                             detected_name = label
-                        elif 0.25 < conf <= 0.55:
+                        elif 0.25 < conf <= 0.70:
                             detected_name = "Unknown"
                     else:
                         print(f"🚫 Upload: Ignored Logical Fail for {label} ({conf:.2f})")
