@@ -398,7 +398,8 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         
         # 1. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
-            gemini_candidates = ['gemini-2.5-flash', 'gemini-exp-1206', 'gemini-flash-latest']
+            # Replaced deprecated experimental models with stable, permanent models
+            gemini_candidates = ['gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
             try:
                 img = PIL.Image.open(image_path)
                 for model_name in gemini_candidates:
