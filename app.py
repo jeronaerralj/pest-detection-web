@@ -39,6 +39,47 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_fallback_key')
 app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOUT_SEC', '900')))
 
+PEST_ALIASES = {
+    "Mealybug": "Pineapple Mealybug",
+    "mealybug": "Pineapple Mealybug",
+    "mealy bug": "Pineapple Mealybug",
+    "Mealybug Cluster": "Pineapple Mealybug", # Added
+    "Giant African Snail": "Giant African Land Snail",
+    "African Snail": "Giant African Land Snail",
+    "Oryctes Rhinoceros Beetle": "Rhinoceros Beetle",
+    "Coconut Rhinoceros Beetle": "Rhinoceros Beetle",
+    "Fruit Fly": "Oriental Fruit Fly",
+    "Cut worm": "Cutworm",
+    "Cutworm Larva": "Cutworm",
+    "Cutworm Moth": "Cutworm",
+    "Coconut Slug Caterpillar": "Slug Caterpillar",
+    "Weaver Ant Cluster": "Weaver Ant",
+    "Gray Borer Generic": "Gray Borer"
+}
+
+# ================== DIRECTORY CONFIGURATION ==================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Database paths
+DB_DIR = os.path.join(BASE_DIR, 'database')
+DATABASE = os.path.join(DB_DIR, 'pests_add.db')
+
+# Static image folders (for the web interface)
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
+HISTORY_FOLDER = os.path.join(BASE_DIR, 'static', 'history')
+
+# Active Learning dataset folders (for YOLO retraining)
+DATASET_DIR = os.path.join(BASE_DIR, 'dataset')
+DATASET_IMG_DIR = os.path.join(DATASET_DIR, 'images')
+DATASET_LBL_DIR = os.path.join(DATASET_DIR, 'labels')
+ACTIVE_LEARNING_CLASSES_FILE = os.path.join(DATASET_DIR, 'classes.json')
+
+# Tell Flask where uploads go
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Automatically create these folders if they don't exist yet
+for folder in [DB_DIR, UPLOAD_FOLDER, HISTORY_FOLDER, DATASET_IMG_DIR, DATASET_LBL_DIR]:
+    os.makedirs(folder, exist_ok=True)
 # --- SERIAL CONFIGURATION ---
 SERIAL_PORT = 'COM4' # Change to your Arduino Port (e.g., /dev/ttyUSB0 on Linux)
 BAUD_RATE = 9600
@@ -135,27 +176,6 @@ cam_states = {
     "CAM 2": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0, "last_email_time": 0},
     "CAM 3": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0}
 }
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DB_DIR = os.path.join(BASE_DIR, 'database')
-DATABASE = os.path.join(DB_DIR, 'pests_add.db') 
-
-STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
-UPLOAD_FOLDER = os.path.join(STATIC_FOLDER, 'uploads')
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-HISTORY_FOLDER = os.path.join(STATIC_FOLDER, 'history') 
-
-# --- ACTIVE LEARNING DIRECTORIES ---
-DATASET_DIR = os.path.join(BASE_DIR, 'dataset')
-DATASET_IMG_DIR = os.path.join(DATASET_DIR, 'images')
-DATASET_LBL_DIR = os.path.join(DATASET_DIR, 'labels')
-ACTIVE_LEARNING_CLASSES_FILE = os.path.join(DATASET_DIR, 'classes.json')
-
-os.makedirs(DB_DIR, exist_ok=True)
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(HISTORY_FOLDER, exist_ok=True) 
-os.makedirs(DATASET_IMG_DIR, exist_ok=True)
-os.makedirs(DATASET_LBL_DIR, exist_ok=True)
 
 # ================== ACTIVE LEARNING HELPERS ==================
 
@@ -851,66 +871,87 @@ def process_camera_frame(frame, cam_id):
     best_conf = 0.0
     best_pest = None
 
-    # Implement thread safety for model inference (Crucial if model is being hot-swapped)
-    with frame_lock:
-        local_model = model
+    moving_boxes = []  # Placeholder for motion detection boxes
+
+    if model:
+        # Run YOLO inference
+        results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
         
-        if local_model:
-            results = local_model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
-            
-            for r in results:
-                for box in r.boxes:
-                    cls_id = int(box.cls[0].item())
-                    conf = float(box.conf[0].item())
-                    raw_label = r.names[cls_id]
-                    
-                    label = raw_label
-                    if "Cutworm" in raw_label: label = "Cutworm"
-                    elif "Weaver Ant" in raw_label: label = "Weaver Ant"
-                    
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
-                        continue
+        for r in results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0].item())
+                conf = float(box.conf[0].item())
+                raw_label = r.names[cls_id]
+                
+                # Apply your mapping (e.g., merging clusters or life stages)
+                label = PEST_ALIASES.get(raw_label, raw_label)
+                
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
+                    continue
+    if model:
+        # Run YOLO inference
+        results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
+        
+        for r in results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0].item())
+                conf = float(box.conf[0].item())
+                raw_label = r.names[cls_id]
+                
+                # Apply your mapping (e.g., merging clusters or life stages)
+                label = PEST_ALIASES.get(raw_label, raw_label)
+                
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
+                    continue
 
-                    if conf > 0.55:
-                        pest_found_in_this_frame = True
-                        best_conf, best_pest = conf, label
+                # Scenario A: High Confidence Known Pest
+                if conf > 0.70:
+                    pest_found_in_this_frame = True
+                    best_conf, best_pest = conf, label
 
-                        now = time.time()
-                        if state["last_logged"] != label or (now - state.get("last_log_time", 0) > 30):
-                            timestamp = int(now)
-                            img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
-                            img_path = os.path.join(HISTORY_FOLDER, img_name)
-                            cv2.imwrite(img_path, annotated_frame)
-                            
-                            log_detection_event(label, f"history/{img_name}", "Live Detection", camera_id=cam_id)
-                            
-                            state["last_logged"] = label
-                            state["last_log_time"] = now
+                    now = time.time()
+                    if state["last_logged"] != label or (now - state.get("last_log_time", 0) > 30):
+                        timestamp = int(now)
+                        img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
+                        img_path = os.path.join(HISTORY_FOLDER, img_name)
+                        cv2.imwrite(img_path, annotated_frame)
+                        log_detection_event(label, f"history/{img_name}", "Live Detection", camera_id=cam_id)
+                        state["last_logged"] = label
+                        state["last_log_time"] = now
 
                         cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1-10), 
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                     
-                    elif 0.25 < conf <= 0.55:
-                        pest_found_in_this_frame = True
-                        if state["ai_override"]:
-                            best_pest = state["ai_override"]
-                            display_text, color = f"AI: {best_pest}", (0, 255, 0)
-                        else:
-                            best_pest = "Unknown"
-                            display_text, color = "Analyzing..." if state["ai_processing"] else "Unknown", (0, 0, 255)
-                            
-                            now = time.time()
-                            if not state["ai_processing"] and (now - state["last_request"] > 10):
-                                state["last_request"] = now
-                                state["ai_processing"] = True
-                                # Pass bounding box details to the thread
-                                threading.Thread(target=start_ai_analysis_thread, args=(frame.copy(), cam_id, x1, y1, x2, y2, frame_w, frame_h)).start()
+                    # Scenario B: Hybrid Check (Low Confidence + Movement = Unknown)
+                    elif 0.15 < conf <= 0.70:
+                        is_moving_anomaly = False
+                        for (mx1, my1, mx2, my2) in moving_boxes:
+                            if mx1 < x2 and mx2 > x1 and my1 < y2 and my2 > y1:
+                                is_moving_anomaly = True
+                                break
+                        
+                        if is_moving_anomaly:
+                            pest_found_in_this_frame = True
+                            if state["ai_override"]:
+                                best_pest = state["ai_override"]
+                                display_text, color = f"AI: {best_pest}", (0, 255, 0)
+                            else:
+                                best_pest = "Unknown"
+                                display_text, color = "Analyzing..." if state["ai_processing"] else "Unknown", (0, 0, 255)
+                                
+                                now = time.time()
+                                if not state["ai_processing"] and (now - state["last_request"] > 10):
+                                    state["last_request"] = now
+                                    state["ai_processing"] = True
+                                    threading.Thread(target=start_ai_analysis_thread, 
+                                                     args=(frame.copy(), cam_id, x1, y1, x2, y2, frame_w, frame_h)).start()
 
-                        cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
-                        cv2.putText(annotated_frame, display_text, (x1, y1-10), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                            cv2.putText(annotated_frame, display_text, (x1, y1-10), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
     if pest_found_in_this_frame:
         state["detected_pest"] = best_pest
@@ -1455,11 +1496,8 @@ def upload():
                     raw_label = results[0].names[class_index]
                     conf = float(results[0].boxes.conf[best_conf_index].item())
                     
-                    label = raw_label
-                    if raw_label in ["Cutworm Larva", "Cutworm Moth"]: label = "Cutworm"
-                    elif raw_label in ["Weaver Ant", "Weaver Ant Cluster"]: label = "Weaver Ant"
-                    elif raw_label in ["Mealybug", "Mealybug Cluster"]: label = "Mealybug"
-                    elif raw_label == "Gray Borer Generic": label = "Gray Borer"
+                    # Apply mapping from the global dictionary
+                    label = PEST_ALIASES.get(raw_label, raw_label)
 
                     box = results[0].boxes.xyxy[best_conf_index].tolist()
                     x1, y1, x2, y2 = box
@@ -1467,9 +1505,9 @@ def upload():
                     box_h = y2 - y1
                     
                     if is_detection_logical(raw_label, box_w, box_h, img_w, img_h):
-                        if conf > 0.55:
+                        if conf > 0.70:
                             detected_name = label
-                        elif 0.25 < conf <= 0.55:
+                        elif 0.25 < conf <= 0.70:
                             detected_name = "Unknown"
                     else:
                         print(f"🚫 Upload: Ignored Logical Fail for {label} ({conf:.2f})")
