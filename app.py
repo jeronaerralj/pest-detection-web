@@ -28,6 +28,24 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_fallback_key')
 app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOUT_SEC', '900')))
 
+PEST_ALIASES = {
+    "Mealybug": "Pineapple Mealybug",
+    "mealybug": "Pineapple Mealybug",
+    "mealy bug": "Pineapple Mealybug",
+    "Mealybug Cluster": "Pineapple Mealybug", # Added
+    "Giant African Snail": "Giant African Land Snail",
+    "African Snail": "Giant African Land Snail",
+    "Oryctes Rhinoceros Beetle": "Rhinoceros Beetle",
+    "Coconut Rhinoceros Beetle": "Rhinoceros Beetle",
+    "Fruit Fly": "Oriental Fruit Fly",
+    "Cut worm": "Cutworm",
+    "Cutworm Larva": "Cutworm",
+    "Cutworm Moth": "Cutworm",
+    "Coconut Slug Caterpillar": "Slug Caterpillar",
+    "Weaver Ant Cluster": "Weaver Ant",
+    "Gray Borer Generic": "Gray Borer"
+}
+
 # ================== DIRECTORY CONFIGURATION ==================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -863,39 +881,22 @@ def process_camera_frame(frame, cam_id):
     best_conf = 0.0
     best_pest = None
 
-    with frame_lock:
-        local_model = model
+    if model:
+        # Run YOLO inference
+        results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
         
-        # --- FACTOR 1: Background Subtraction ---
-        fg_mask = state["bg_subtractor"].apply(frame)
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
-        contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        moving_boxes = []
-        for contour in contours:
-            area = cv2.contourArea(contour)
-            if 300 < area < 15000: # Ignore tiny specs of noise
-                cx1, cy1, cw, ch = cv2.boundingRect(contour)
-                moving_boxes.append((cx1, cy1, cx1 + cw, cy1 + ch))
-
-        # --- FACTOR 2: YOLO Inference ---
-        if local_model:
-            results = local_model(frame, stream=True, conf=0.15, verbose=False, agnostic_nms=True)
-            
-            for r in results:
-                for box in r.boxes:
-                    cls_id = int(box.cls[0].item())
-                    conf = float(box.conf[0].item())
-                    raw_label = r.names[cls_id]
-                    
-                    label = raw_label
-                    if "Cutworm" in raw_label: label = "Cutworm"
-                    elif "Weaver Ant" in raw_label: label = "Weaver Ant"
-                    
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    if not is_detection_logical(raw_label, (x2-x1), (y2-y1), frame_w, frame_h):
-                        continue
+        for r in results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0].item())
+                conf = float(box.conf[0].item())
+                raw_label = r.names[cls_id]
+                
+                # Apply your mapping (e.g., merging clusters or life stages)
+                label = PEST_ALIASES.get(raw_label, raw_label)
+                
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
+                    continue
 
                     # Scenario A: High Confidence Known Pest
                     if conf > 0.70:
@@ -1439,11 +1440,8 @@ def upload():
                     raw_label = results[0].names[class_index]
                     conf = float(results[0].boxes.conf[best_conf_index].item())
                     
-                    label = raw_label
-                    if raw_label in ["Cutworm Larva", "Cutworm Moth"]: label = "Cutworm"
-                    elif raw_label in ["Weaver Ant", "Weaver Ant Cluster"]: label = "Weaver Ant"
-                    elif raw_label in ["Mealybug", "Mealybug Cluster"]: label = "Mealybug"
-                    elif raw_label == "Gray Borer Generic": label = "Gray Borer"
+                    # Apply mapping from the global dictionary
+                    label = PEST_ALIASES.get(raw_label, raw_label)
 
                     box = results[0].boxes.xyxy[best_conf_index].tolist()
                     x1, y1, x2, y2 = box
@@ -1451,9 +1449,9 @@ def upload():
                     box_h = y2 - y1
                     
                     if is_detection_logical(raw_label, box_w, box_h, img_w, img_h):
-                        if conf > 0.55:
+                        if conf > 0.70:
                             detected_name = label
-                        elif 0.25 < conf <= 0.55:
+                        elif 0.25 < conf <= 0.70:
                             detected_name = "Unknown"
                     else:
                         print(f"🚫 Upload: Ignored Logical Fail for {label} ({conf:.2f})")
