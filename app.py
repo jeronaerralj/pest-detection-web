@@ -898,20 +898,20 @@ def process_camera_frame(frame, cam_id):
                 if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
                     continue
 
-                    # Scenario A: High Confidence Known Pest
-                    if conf > 0.70:
-                        pest_found_in_this_frame = True
-                        best_conf, best_pest = conf, label
+                # Scenario A: High Confidence Known Pest
+                if conf > 0.70:
+                    pest_found_in_this_frame = True
+                    best_conf, best_pest = conf, label
 
-                        now = time.time()
-                        if state["last_logged"] != label or (now - state.get("last_log_time", 0) > 30):
-                            timestamp = int(now)
-                            img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
-                            img_path = os.path.join(HISTORY_FOLDER, img_name)
-                            cv2.imwrite(img_path, annotated_frame)
-                            log_detection_event(label, f"history/{img_name}", "Live Detection", camera_id=cam_id)
-                            state["last_logged"] = label
-                            state["last_log_time"] = now
+                    now = time.time()
+                    if state["last_logged"] != label or (now - state.get("last_log_time", 0) > 30):
+                        timestamp = int(now)
+                        img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
+                        img_path = os.path.join(HISTORY_FOLDER, img_name)
+                        cv2.imwrite(img_path, annotated_frame)
+                        log_detection_event(label, f"history/{img_name}", "Live Detection", camera_id=cam_id)
+                        state["last_logged"] = label
+                        state["last_log_time"] = now
 
                         cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1-10), 
