@@ -7,7 +7,7 @@
     <title>PinePestify | AI Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
@@ -17,19 +17,32 @@
             --primary-dark: #1b5e20;
             --primary-light: #e8f5e9;
             --secondary: #546e7a;
-            --bg-body: #f3f4f6;
+            --bg-body: #f4f7f6; /* Softer, modern background */
             --bg-card: #ffffff;
-            --text-main: #111827;
+            --text-main: #1f2937;
             --text-muted: #6b7280;
-            --danger: #d32f2f;
+            --danger: #ef4444;
             --warning: #f59e0b;
-            --radius: 16px;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --radius: 20px; /* Rounder, modern corners */
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
+            --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05); /* Softer, wider shadow */
+            --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            
+            /* Treatment Colors */
+            --color-cult: 141, 110, 99;
+            --color-bio: 102, 187, 106;
+            --color-san: 41, 182, 246;
+            --color-mech: 255, 167, 38;
+            --color-chem: 239, 83, 80;
         }
 
         * { box-sizing: border-box; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-body); }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         body {
             background-color: var(--bg-body);
@@ -49,41 +62,34 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid #f1f5f9;
+            box-shadow: var(--shadow-sm);
             position: sticky;
             top: 0;
             z-index: 50;
         }
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .brand-icon {
-            fill: var(--primary);
-            height: 40px;
-            width: 40px;
-        }
-
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand-icon { fill: var(--primary); height: 42px; width: 42px; filter: drop-shadow(0 4px 6px rgba(46,125,50,0.2)); }
+        
         .brand h1 {
             font-family: "Poppins", sans-serif;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--text-main);
             margin: 0;
             line-height: 1;
             letter-spacing: -0.5px;
         }
+        .brand h1 span { color: var(--primary); }
 
-        .brand span {
+        .brand-subtitle {
             background: var(--primary-light);
             color: var(--primary-dark);
-            padding: 2px 8px;
-            border-radius: 4px;
+            padding: 3px 10px;
+            border-radius: 6px;
             font-size: 0.7rem;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             display: inline-block;
@@ -98,8 +104,8 @@
             margin: 0 auto;
             width: 100%;
             display: grid;
-            gap: 1.5rem;
-            grid-template-columns: 320px 1fr 300px;
+            gap: 1.8rem;
+            grid-template-columns: 340px 1fr 320px;
             align-items: start;
             overflow-y: auto; 
         }
@@ -109,262 +115,206 @@
             background: var(--bg-card);
             border-radius: var(--radius);
             box-shadow: var(--shadow-md);
-            padding: 1.25rem;
-            transition: transform 0.2s ease;
-            margin-bottom: 1.5rem;
+            border: 1px solid #f8fafc;
+            padding: 1.5rem;
+            margin-bottom: 1.8rem;
+            transition: box-shadow 0.3s ease;
         }
-        
+        .card:hover { box-shadow: var(--shadow-hover); }
         .card:last-child { margin-bottom: 0; }
 
         .card-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid #f3f4f6;
+            margin-bottom: 1.25rem;
+            border-bottom: 2px solid #f1f5f9;
             padding-bottom: 0.75rem;
         }
 
         .card-title {
             font-family: "Poppins", sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--text-muted);
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin: 0;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
+        .card-title .material-icons-round { color: var(--primary); }
 
         /* --- COLUMN 1: VISUALS --- */
         .camera-feed {
-            background: #000;
-            border-radius: 12px;
+            background: #0f172a;
+            border-radius: 14px;
             overflow: hidden;
             position: relative;
             aspect-ratio: 4/3;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
             cursor: pointer;
-            border: 2px solid transparent;
+            border: 3px solid transparent;
             transition: all 0.2s ease;
         }
         
         .camera-feed.active-cam {
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px var(--primary-light);
+            box-shadow: 0 0 0 5px var(--primary-light);
         }
 
-        .camera-feed img { width: 100%; height: 100%; object-fit: cover; display: block;}
+        .camera-feed img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.9;}
+        .camera-feed.active-cam img { opacity: 1; }
 
         .cam-badge {
-            position: absolute; top: 10px; left: 10px;
-            background: rgba(0,0,0,0.6); color: white;
-            padding: 4px 12px; border-radius: 20px;
+            position: absolute; top: 12px; left: 12px;
+            background: rgba(15, 23, 42, 0.75); color: white;
+            padding: 5px 14px; border-radius: 20px;
             font-size: 0.75rem; font-weight: 600;
-            backdrop-filter: blur(4px);
-            display: flex; align-items: center; gap: 6px;
+            backdrop-filter: blur(8px);
+            display: flex; align-items: center; gap: 8px;
             transition: background 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .live-dot { height: 8px; width: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s infinite; }
-        
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .live-dot { height: 8px; width: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s infinite; box-shadow: 0 0 8px #ef4444;}
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
         .sub-cams {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 12px;
+            margin-top: 12px;
         }
 
-        /* --- FULLSCREEN CAMERA STYLES --- */
         .expand-btn {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 6px;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s, background 0.2s;
-            z-index: 10;
-            backdrop-filter: blur(4px);
+            position: absolute; bottom: 12px; right: 12px;
+            background: rgba(15, 23, 42, 0.75); color: white;
+            padding: 8px; border-radius: 10px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: all 0.2s; z-index: 10;
+            backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1);
         }
+        .expand-btn:hover { background: var(--primary); }
+        .camera-feed:hover .expand-btn { opacity: 1; transform: scale(1.05); }
 
-        .expand-btn:hover {
-            background: rgba(46, 125, 50, 0.9); /* Primary Green */
-        }
-
-        .camera-feed:hover .expand-btn {
-            opacity: 1;
-        }
-
-        /* Fix image scaling when in fullscreen mode */
         .camera-feed:fullscreen {
-            background: #000;
-            border: none !important;
-            border-radius: 0;
-            box-shadow: none !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: #000; border: none !important; border-radius: 0;
+            box-shadow: none !important; display: flex; align-items: center; justify-content: center;
         }
-
-        .camera-feed:fullscreen img {
-            object-fit: contain; /* Shows the whole feed without cropping */
-            width: 100vw;
-            height: 100vh;
-        }
+        .camera-feed:fullscreen img { object-fit: contain; width: 100vw; height: 100vh; }
 
         /* --- COLUMN 2: INTELLIGENCE --- */
-        .id-layout {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
+        .id-layout { display: flex; gap: 25px; align-items: center; }
 
         .pest-photo {
-            width: 140px; height: 140px;
-            border-radius: 12px;
-            background: #f9fafb;
-            border: 2px dashed #e5e7eb;
-            display: flex;
-            align-items: center; justify-content: center;
-            color: var(--text-muted);
-            font-size: 0.8rem;
+            width: 150px; height: 150px;
+            border-radius: 16px; background: #f8fafc; border: 2px dashed #cbd5e1;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); font-size: 0.85rem; font-weight: 500;
+            overflow: hidden; flex-shrink: 0; transition: border-color 0.3s;
+        }
+
+        .pest-details { flex: 1; display: grid; gap: 15px; }
+
+        .detail-item label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; letter-spacing: 0.5px;}
+        .detail-item .value { font-size: 1.15rem; font-weight: 600; color: var(--text-main); margin-top: 4px;}
+        .detail-item .value.big { font-size: 1.8rem; color: var(--primary); font-family: "Poppins", sans-serif; font-weight: 700;}
+
+        .treatments-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+
+        .treatment-box { 
+            background: #ffffff; 
+            padding: 18px; 
+            border-radius: 14px; 
+            border: 1px solid #f1f5f9;
+            position: relative;
             overflow: hidden;
-            flex-shrink: 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
         }
+        
+        /* Modernized colored labels */
+        .treatment-box::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+        }
+        .box-cult { background-color: rgba(var(--color-cult), 0.04); }
+        .box-cult::before { background-color: rgb(var(--color-cult)); }
+        
+        .box-bio { background-color: rgba(var(--color-bio), 0.04); }
+        .box-bio::before { background-color: rgb(var(--color-bio)); }
+        
+        .box-san { background-color: rgba(var(--color-san), 0.04); }
+        .box-san::before { background-color: rgb(var(--color-san)); }
+        
+        .box-mech { background-color: rgba(var(--color-mech), 0.04); }
+        .box-mech::before { background-color: rgb(var(--color-mech)); }
+        
+        .box-chem { background-color: rgba(var(--color-chem), 0.04); }
+        .box-chem::before { background-color: rgb(var(--color-chem)); }
 
-        .pest-details { flex: 1; display: grid; gap: 10px; }
-
-        .detail-item label {
-            font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;
-        }
-        .detail-item .value {
-            font-size: 1.1rem; font-weight: 600; color: var(--text-main);
-        }
-        .detail-item .value.big {
-            font-size: 1.5rem; color: var(--primary);
-        }
-
-        .treatments-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-
-        .treatment-box {
-            background: #f8fafc;
-            border-left: 4px solid #ccc;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        .treatment-box h4 { margin: 0 0 5px 0; font-size: 0.85rem; color: #475569; }
-        .treatment-box p { margin: 0; font-size: 0.9rem; color: #334155; }
-
-        .box-cult { border-color: #8d6e63; }
-        .box-bio { border-color: #66bb6a; }
-        .box-san { border-color: #29b6f6; }
-        .box-mech { border-color: #ffa726; }
-        .box-chem { border-color: #ef5350; }
+        .treatment-box h4 { margin: 0 0 8px 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-transform: uppercase;}
+        .treatment-box p { margin: 0; font-size: 0.95rem; color: var(--text-muted); line-height: 1.5;}
 
         /* --- COLUMN 3: COMMAND --- */
-        .status {
-            background: var(--primary-light);
-            color: var(--primary-dark);
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
-            margin-bottom: 15px;
-            border: 1px solid #c8e6c9;
-        }
-
-        .control-grid { display: grid; gap: 10px; }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-family: "Inter", sans-serif;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.2s;
-        }
+        .status { background: var(--primary-light); color: var(--primary-dark); padding: 14px; border-radius: 12px; text-align: center; font-weight: 700; margin-bottom: 20px; font-size: 1.05rem;}
         
-        button:active { transform: scale(0.98); }
+        .control-grid { display: grid; gap: 12px; }
 
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-dark); }
+        button { 
+            width: 100%; padding: 14px; border: none; border-radius: 12px; 
+            font-weight: 600; font-family: "Inter", sans-serif; font-size: 0.95rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; 
+            gap: 10px; transition: all 0.2s; 
+        }
+        button:active { transform: scale(0.97); }
+
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2); }
+        .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 6px 16px rgba(46, 125, 50, 0.3); transform: translateY(-2px);}
         
-        .btn-outline { background: white; border: 1px solid #d1d5db; color: var(--text-main); }
-        .btn-outline:hover { background: #f9fafb; border-color: #9ca3af; }
-
-        .btn-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
-        .btn-danger:hover { background: #fecaca; }
-
+        .btn-outline { background: white; border: 2px solid #e2e8f0; color: var(--text-main); font-weight: 700;}
+        .btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; transform: translateY(-2px);}
+        
+        .btn-danger { background: #fef2f2; color: #dc2626; border: 2px solid #fecaca; }
+        .btn-danger:hover { background: #fee2e2; border-color: #fca5a5; }
+        
         .btn-analytics { background: #0f172a; color: white; }
-        .btn-analytics:hover { background: #1e293b; }
+        .btn-analytics:hover { background: #1e293b; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);}
 
-        /* ARDUINO PANEL */
-        .arduino-panel {
-            background: #1f2937;
-            color: white;
-            border-radius: 12px;
-            padding: 15px;
+        /* --- ARDUINO PANEL (SLEEK TECH DESIGN) --- */
+        .arduino-panel { 
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); 
+            color: white; border-radius: 20px; padding: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid #334155;
         }
+        .arduino-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; }
+        .arduino-header .material-icons-round { color: #38bdf8; }
         
-        .arduino-header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 15px;
-            font-size: 0.8rem; text-transform: uppercase; color: #9ca3af; letter-spacing: 1px;
-        }
-
-        .sensor-readout {
-            display: flex; justify-content: space-between;
-            background: #111827; padding: 10px; border-radius: 8px;
-            margin-bottom: 15px;
-        }
-
+        .sensor-readout { display: flex; justify-content: space-between; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 14px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
         .readout-item { text-align: center; flex: 1; }
-        .readout-item label { font-size: 0.65rem; color: #9ca3af; display: block; margin-bottom: 4px;}
-        .readout-item span { font-size: 1rem; font-weight: 700; color: #4ade80; font-family: monospace; }
+        .readout-item label { font-size: 0.7rem; color: #64748b; display: block; margin-bottom: 6px; font-weight: 600; letter-spacing: 0.5px;}
+        .readout-item span { font-size: 1.4rem; font-weight: 800; color: #4ade80; font-family: "Poppins", monospace; text-shadow: 0 0 10px rgba(74, 222, 128, 0.3);}
         
-        .arduino-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-        .btn-ard-on { background: #166534; color: #a7f3d0; }
-        .btn-ard-off { background: #374151; color: #d1d5db; }
-        .btn-ard-auto { background: #0369a1; color: white; margin-top: 5px; }
+        .arduino-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .btn-ard-on { background: rgba(22, 101, 52, 0.8); border: 1px solid #166534; color: #86efac; }
+        .btn-ard-on:hover { background: #166534; }
+        .btn-ard-off { background: rgba(153, 27, 27, 0.8); border: 1px solid #991b1b; color: #fca5a5; }
+        .btn-ard-off:hover { background: #991b1b; }
+        .btn-ard-auto { background: rgba(3, 105, 161, 0.8); border: 1px solid #0369a1; color: #bae6fd; margin-top: 5px; }
+        .btn-ard-auto:hover { background: #0369a1; }
 
         /* --- MODAL --- */
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
-        .modal-content { background: white; margin: 4% auto; padding: 30px; border-radius: 20px; width: 90%; max-width: 1000px; box-shadow: var(--shadow-lg); position: relative; }
-        .close { position: absolute; right: 25px; top: 20px; font-size: 28px; cursor: pointer; color: #999; }
-        .modal-controls { display: flex; gap: 15px; background: #f3f4f6; padding: 15px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
-        .filter-input { padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(6px); }
+        .modal-content { background: white; margin: 4vh auto; padding: 35px; border-radius: 24px; width: 90%; max-width: 1000px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; }
+        .close { position: absolute; right: 25px; top: 25px; font-size: 32px; cursor: pointer; color: #94a3b8; transition: color 0.2s;}
+        .close:hover { color: #0f172a; }
+        .modal-controls { display: flex; gap: 15px; background: #f8fafc; padding: 20px; border-radius: 16px; margin-bottom: 25px; flex-wrap: wrap; align-items: flex-end; border: 1px solid #e2e8f0;}
+        .filter-input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; font-family: "Inter", sans-serif; outline: none;}
+        .filter-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
 
-        /* RESPONSIVE */
-        @media (max-width: 1200px) {
-            .dashboard-container { grid-template-columns: 300px 1fr; }
-            .col-3 { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } 
-        }
-        @media (max-width: 900px) {
-            .dashboard-container { grid-template-columns: 1fr; }
-            .col-3 { display: flex; flex-direction: column; }
-            .id-layout { flex-direction: column; text-align: center; }
-        }
+        @media (max-width: 1300px) { .dashboard-container { grid-template-columns: 340px 1fr; } .col-3 { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } }
+        @media (max-width: 900px) { .dashboard-container { grid-template-columns: 1fr; } .col-3 { display: flex; flex-direction: column; } .id-layout { flex-direction: column; text-align: center; } }
     </style>
 </head>
 
@@ -375,12 +325,12 @@
                 <path d="M19 8h-1.81c-.45-.78-1.07-1.45-1.82-1.96l.93-.93c.39-.39.39-1.02 0-1.41-.39-.39-1.02-.39-1.41 0l-1.47 1.47C12.96 5.06 12.49 5 12 5s-.96.06-1.41.17L9.11 3.7c-.39-.39-1.02-.39-1.41 0-.39.39-.39 1.02 0 1.41l.93.93c-.75.51-1.37 1.18-1.82 1.96H5c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h1v2c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2v-2h1c1.1 0 2-.9 2-2v-2h1c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 12H11v-2h2v2zm0-4H11v-2h2v2zm0-4H11V8h2v4z"/>
             </svg>
             <div>
-                <h1>PINEPESTIFY</h1>
-                <span>AI Monitoring System</span>
+                <h1>PINEPESTIFY <span>AI</span></h1>
+                <span class="brand-subtitle">Monitoring System</span>
             </div>
         </div>
-        <div style="font-size: 0.9rem; color: var(--text-muted);">
-            <span id="clock" style="font-weight: 600;">--:--</span>
+        <div style="font-size: 0.95rem; color: var(--text-muted); font-weight: 600; font-family: 'Poppins', sans-serif;">
+            <span id="clock">--:--</span>
         </div>
     </header>
 
@@ -395,26 +345,19 @@
                 <div class="camera-feed main-cam active-cam" data-cam="CAM 1">
                     <div class="cam-badge" id="badge-cam1"><div class="live-dot"></div> Main AI</div>
                     <img id="camera-img-1" src="" alt="Waiting for stream..." />
-                    <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
-                        <span class="material-icons-round">fullscreen</span>
-                    </div>
+                    <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)"><span class="material-icons-round">fullscreen</span></div>
                 </div>
                 
                 <div class="sub-cams">
                     <div class="camera-feed" data-cam="CAM 2" style="aspect-ratio: 16/9;">
                         <div class="cam-badge" id="badge-cam2">Cam 2</div>
                         <img id="camera-img-2" src="" alt="No Signal" />
-                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
-                            <span class="material-icons-round">fullscreen</span>
-                        </div>
+                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)"><span class="material-icons-round">fullscreen</span></div>
                     </div>
-                    
                     <div class="camera-feed" data-cam="CAM 3" style="aspect-ratio: 16/9;">
                         <div class="cam-badge" id="badge-cam3">Cam 3</div>
                         <img id="camera-img-3" src="" alt="No Signal" />
-                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
-                            <span class="material-icons-round">fullscreen</span>
-                        </div>
+                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)"><span class="material-icons-round">fullscreen</span></div>
                     </div>
                 </div>
             </div>
@@ -423,27 +366,19 @@
         <div class="col-2">
             <div class="card" id="id-card-panel" style="border-top: 5px solid var(--primary);">
                 <div class="card-header">
-                    <h3 class="card-title"><span class="material-icons-round">search</span> Detection Result</h3>
-                    <span class="material-icons-round" style="color: #ccc;">info</span>
+                    <h3 class="card-title"><span class="material-icons-round">radar</span> Detection Result</h3>
+                    <span class="material-icons-round" style="color: #cbd5e1; font-size: 20px;">info</span>
                 </div>
                 <div class="id-layout">
-                    <div class="pest-photo" id="photoBox">
-                        <span>Subject Photo</span>
-                    </div>
+                    <div class="pest-photo" id="photoBox"><span>Subject Photo</span></div>
                     <div class="pest-details">
                         <div class="detail-item">
                             <label>Common Name</label>
                             <div id="pestName" class="value big">—</div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div class="detail-item">
-                                <label>Scientific</label>
-                                <div id="scientificName" class="value">—</div>
-                            </div>
-                            <div class="detail-item">
-                                <label>Classification</label>
-                                <div id="classification" class="value" style="color: var(--primary);">—</div>
-                            </div>
+                            <div class="detail-item"><label>Scientific Name</label><div id="scientificName" class="value">—</div></div>
+                            <div class="detail-item"><label>Classification</label><div id="classification" class="value" style="color: var(--primary);">—</div></div>
                         </div>
                     </div>
                 </div>
@@ -451,29 +386,14 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title"><span class="material-icons-round">healing</span> Recommended Actions</h3>
+                    <h3 class="card-title"><span class="material-icons-round">science</span> Recommended Actions</h3>
                 </div>
                 <div class="treatments-grid">
-                    <div class="treatment-box box-cult">
-                        <h4>Cultural</h4>
-                        <p id="cultural">—</p>
-                    </div>
-                    <div class="treatment-box box-bio">
-                        <h4>Biological</h4>
-                        <p id="biological">—</p>
-                    </div>
-                    <div class="treatment-box box-san">
-                        <h4>Sanitation</h4>
-                        <p id="sanitation">—</p>
-                    </div>
-                    <div class="treatment-box box-mech">
-                        <h4>Mechanical</h4>
-                        <p id="mechanical">—</p>
-                    </div>
-                    <div class="treatment-box box-chem">
-                        <h4>Chemical</h4>
-                        <p id="chemical">—</p>
-                    </div>
+                    <div class="treatment-box box-cult"><h4>Cultural</h4><p id="cultural">—</p></div>
+                    <div class="treatment-box box-bio"><h4>Biological</h4><p id="biological">—</p></div>
+                    <div class="treatment-box box-san"><h4>Sanitation</h4><p id="sanitation">—</p></div>
+                    <div class="treatment-box box-mech"><h4>Mechanical</h4><p id="mechanical">—</p></div>
+                    <div class="treatment-box box-chem"><h4>Chemical</h4><p id="chemical">—</p></div>
                 </div>
             </div>
         </div>
@@ -481,42 +401,27 @@
         <div class="col-3">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title"><span class="material-icons-round">settings</span> System Control</h3>
+                    <h3 class="card-title"><span class="material-icons-round">dashboard_customize</span> System Control</h3>
                 </div>
-                <div class="status" id="system-status-box">
-                    <span id="status-text">System Ready</span>
-                </div>
+                <div class="status" id="system-status-box"><span id="status-text">System Ready</span></div>
                 <div class="control-grid">
-                    <button id="startBtn" class="btn-primary">
-                        <span class="material-icons-round">play_arrow</span> Start Detect
-                    </button>
-                    <button id="cameraToggleBtn" class="btn-outline">
-                        <span class="material-icons-round">switch_video</span> Cameras
-                    </button>
-                    <button onclick="openModal()" class="btn-analytics">
-                        <span class="material-icons-round">insights</span> Analytics
-                    </button>
-                    <button id="cancelBtn" class="btn-danger">
-                        <span class="material-icons-round">power_settings_new</span> Stop All
-                    </button>
+                    <button id="startBtn" class="btn-primary"><span class="material-icons-round">play_arrow</span> Start Detect</button>
+                    <button id="cameraToggleBtn" class="btn-outline"><span class="material-icons-round">switch_video</span> Cameras</button>
+                    <button onclick="openModal()" class="btn-analytics"><span class="material-icons-round">insights</span> Analytics</button>
+                    <button id="reloadModelBtn" class="btn-outline" onclick="reloadModel()"><span class="material-icons-round">autorenew</span> Reload Model</button>
+                    <button id="cancelBtn" class="btn-danger"><span class="material-icons-round">power_settings_new</span> Stop All</button>
                 </div>
             </div>
 
             <div class="arduino-panel">
                 <div class="arduino-header">
-                    <span style="display: flex; align-items: center; gap: 5px;"><span class="material-icons-round" style="font-size: 16px;">router</span> Hardware Control</span>
-                    <div id="lightMode" style="background: #0ea5e9; padding: 2px 8px; border-radius: 4px; color: white; font-size: 0.7rem;">AUTO</div>
+                    <span style="display: flex; align-items: center; gap: 6px;"><span class="material-icons-round" style="font-size: 18px;">router</span> Hardware Link</span>
+                    <div id="lightMode" style="background: #0284c7; padding: 3px 10px; border-radius: 6px; color: white; font-size: 0.7rem;">AUTO</div>
                 </div>
                 
                 <div class="sensor-readout">
-                    <div class="readout-item">
-                        <label>UV INDEX</label>
-                        <span id="uvValue">0</span>
-                    </div>
-                    <div class="readout-item">
-                        <label>RELAY STATUS</label>
-                        <span id="lightStatus" style="color: #ef4444;">OFF</span>
-                    </div>
+                    <div class="readout-item"><label>UV INDEX</label><span id="uvValue">0</span></div>
+                    <div class="readout-item"><label>RELAY</label><span id="lightStatus" style="color: #ef4444;">OFF</span></div>
                 </div>
 
                 <div class="arduino-btns">
@@ -532,43 +437,131 @@
     <div id="analyticsModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
-            <div class="card-header">
-                <h2 style="margin: 0;">Pest Detection Analytics</h2>
-            </div>
-            
+            <div class="card-header"><h2 style="margin: 0; font-family: 'Poppins', sans-serif;">Pest Detection Analytics</h2></div>
             <div class="modal-controls">
                 <div style="flex: 1;">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #666;">View Data For:</label><br>
-                    <select id="pestSelect" class="filter-input" onchange="loadAnalytics()" style="width: 100%;">
-                        <option value="all">Overview (All Pests)</option>
-                    </select>
+                    <label style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase;">View Data For:</label><br>
+                    <select id="pestSelect" class="filter-input" onchange="loadAnalytics()" style="width: 100%;"><option value="all">Overview (All Pests)</option></select>
                 </div>
-                <div>
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #666;">Start</label><br>
-                    <input type="date" id="startDate" class="filter-input">
-                </div>
-                <div>
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #666;">End</label><br>
-                    <input type="date" id="endDate" class="filter-input">
-                </div>
-                <button onclick="loadAnalytics()" class="btn-primary" style="width: auto;">Update</button>
-                <button onclick="exportCSV()" class="btn-outline" style="width: auto;">Export CSV</button>
+                <div><label style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Start</label><br><input type="date" id="startDate" class="filter-input"></div>
+                <div><label style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase;">End</label><br><input type="date" id="endDate" class="filter-input"></div>
+                <button onclick="loadAnalytics()" class="btn-primary" style="width: auto; padding: 0 20px;">Update</button>
+                <button onclick="exportCSV()" class="btn-outline" style="width: auto; padding: 0 20px;">Export CSV</button>
             </div>
-
-            <div style="height: 450px; width: 100%;">
-                <canvas id="pestChart"></canvas>
-            </div>
+            <div style="height: 450px; width: 100%;"><canvas id="pestChart"></canvas></div>
         </div>
     </div>
 
+    <style>
+      .manual-modal-overlay { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15,23,42,0.7); backdrop-filter: blur(6px); }
+      .manual-modal-content { background-color: #fff; margin: 5vh auto; padding: 0; border-radius: 20px; width: 90%; max-width: 750px; max-height: 85vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); font-family: "Inter", sans-serif; color: #1e293b; }
+      .manual-header { background: linear-gradient(135deg, #2e7d32, #1b5e20); color: white; padding: 25px 35px; border-radius: 20px 20px 0 0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.1);}
+      .manual-header h2 { margin: 0; font-family: "Poppins", sans-serif; font-size: 1.5rem; display: flex; align-items: center; gap: 12px; font-weight: 700;}
+      .manual-close-btn { background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+      .manual-close-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05);}
+      .manual-body { padding: 35px; text-align: left; }
+      .manual-section { margin-bottom: 30px; background: #f8fafc; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; }
+      .manual-section h3 { color: #2e7d32; font-size: 1.2rem; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px; font-family: "Poppins", sans-serif; font-weight: 700;}
+      .manual-section p { margin: 0 0 12px 0; line-height: 1.6; font-size: 1rem; color: #475569; }
+      .manual-section ul { margin: 0; padding-left: 20px; color: #475569; font-size: 1rem; line-height: 1.7; }
+      .manual-section li { margin-bottom: 8px; }
+      .manual-section li b { color: #1e293b; }
+      
+      /* THE FIX: STRICTLY A FLOATING ACTION BUTTON */
+      .manual-fab { 
+          position: fixed !important; 
+          bottom: 30px !important; 
+          right: 30px !important; 
+          width: auto !important; /* Prevents stretching */
+          background-color: #2e7d32; 
+          color: white; 
+          border: none; 
+          border-radius: 50px !important; 
+          padding: 16px 28px !important; 
+          font-family: "Poppins", sans-serif; 
+          font-weight: 600; 
+          font-size: 1.05rem; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center;
+          gap: 10px; 
+          box-shadow: 0 10px 20px rgba(46, 125, 50, 0.4) !important; 
+          cursor: pointer; 
+          z-index: 9998; 
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+      }
+      .manual-fab:hover { 
+          transform: translateY(-5px) scale(1.02); 
+          background-color: #1b5e20; 
+          box-shadow: 0 15px 25px rgba(46, 125, 50, 0.5) !important;
+      }
+    </style>
+  
+    <button class="manual-fab" onclick="openUserManual()">
+      <span class="material-icons-round">menu_book</span> Guide
+    </button>
+  
+    <div id="pinePestifyManual" class="manual-modal-overlay" onclick="closeManualOutside(event)">
+      <div class="manual-modal-content">
+        <div class="manual-header">
+          <h2><span class="material-icons-round">menu_book</span> System Guide</h2>
+          <button class="manual-close-btn" onclick="closeUserManual()">&times;</button>
+        </div>
+        <div class="manual-body">
+          <div class="manual-section">
+            <h3><span class="material-icons-round" style="color: #0284c7;">videocam</span> 1. Live Detection Dashboard</h3>
+            <p>The main dashboard monitors your crop environment using camera feeds.</p>
+            <ul>
+              <li><b>Cameras:</b> Toggles the live video feeds on and off.</li>
+              <li><b>Start Detect:</b> Activates the AI to draw bounding boxes around detected bugs.</li>
+              <li><b>Unknown Pests:</b> If an unregistered pest is detected, the system captures it, sends it to an external AI for analysis, and logs the new data.</li>
+              <li><b>Reload Model:</b> Click this after "Active Learning" completes to update the system with new pest intelligence.</li>
+            </ul>
+          </div>
+          <div class="manual-section">
+            <h3><span class="material-icons-round" style="color: #ea580c;">router</span> 2. Hardware Control</h3>
+            <p>From the dashboard, you can control the connected Arduino hardware.</p>
+            <ul>
+              <li><b>UV Index:</b> Displays real-time UV sensor data.</li>
+              <li><b>Relay Status:</b> Shows if the physical relay is ON or OFF.</li>
+              <li><b>Force ON/OFF:</b> Manually override the relay state.</li>
+              <li><b>Auto Mode:</b> Returns control to the system's automated sensor logic.</li>
+            </ul>
+          </div>
+          <div class="manual-section">
+            <h3><span class="material-icons-round" style="color: #9333ea;">cloud_upload</span> 3. Image Upload</h3>
+            <p>Upload a clear photo of an insect. The AI will instantly analyze the image, identify the species, and generate a comprehensive treatment plan including cultural, biological, and chemical methods.</p>
+          </div>
+          <div class="manual-section">
+            <h3><span class="material-icons-round" style="color: #059669;">library_books</span> 4. Library & History</h3>
+            <ul>
+              <li><b>Pest Library:</b> A searchable database of known pests and their specific treatments.</li>
+              <li><b>Detection History:</b> A visual log of every pest detected by the live cameras or uploaded manually, complete with timestamps.</li>
+            </ul>
+          </div>
+          <div class="manual-section">
+            <h3><span class="material-icons-round" style="color: #dc2626;">admin_panel_settings</span> 5. Admin Features</h3>
+            <p>Users logged in as Administrators have access to data management tools.</p>
+            <ul>
+              <li><b>Add New Pest:</b> Manually create a database entry for a new pest.</li>
+              <li><b>Pest List:</b> A spreadsheet view allowing admins to edit pest details inline or upload new reference images.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  
     <script>
-        // Clock Update
+      function openUserManual() { document.getElementById('pinePestifyManual').style.display = 'block'; }
+      function closeUserManual() { document.getElementById('pinePestifyManual').style.display = 'none'; }
+      function closeManualOutside(event) { if (event.target === document.getElementById('pinePestifyManual')) closeUserManual(); }
+    </script>
+    <script>
         setInterval(() => {
             const now = new Date();
             document.getElementById('clock').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         }, 1000);
 
-        // --- VARIABLES ---
         const cam1 = document.getElementById("camera-img-1");
         const cam2 = document.getElementById("camera-img-2");
         const cam3 = document.getElementById("camera-img-3");
@@ -580,7 +573,6 @@
         const modal = document.getElementById("analyticsModal");
         const pestSelect = document.getElementById("pestSelect");
 
-        // Text Fields
         const fields = {
             name: document.getElementById("pestName"),
             sci: document.getElementById("scientificName"),
@@ -598,62 +590,41 @@
         let detecting = false;
         let pollInterval = null;
         let pestChart = null;
-        
-        // MULTI-CAM TRACKERS
         let selectedCamId = "CAM 1";
         let latestStatusData = null;
 
-        // --- FULLSCREEN LOGIC ---
         function toggleFullScreen(elem, event) {
-            // Prevent the click from simultaneously triggering the camera selection logic
             if (event) event.stopPropagation();
-
             if (!document.fullscreenElement) {
-                elem.requestFullscreen().catch(err => {
-                    console.warn(`Error attempting to enable fullscreen: ${err.message}`);
-                });
+                elem.requestFullscreen().catch(err => { console.warn(`Error: ${err.message}`); });
             } else {
                 document.exitFullscreen();
             }
         }
 
-        // Camera feed selector logic
         document.querySelectorAll('.camera-feed').forEach(feed => {
-            // Single Click: Selects the camera for data view
             feed.addEventListener('click', function() {
-                // Remove active class from all
                 document.querySelectorAll('.camera-feed').forEach(f => f.classList.remove('active-cam'));
-                // Add active to clicked
                 this.classList.add('active-cam');
-                
-                // Update selectedCamId based on data attribute
                 selectedCamId = this.getAttribute('data-cam');
-                
-                // If detecting, immediately update the main cards with the cached data for this camera
                 if (latestStatusData && latestStatusData.cameras) {
                     updateUIForSelectedCam(latestStatusData.cameras[selectedCamId]);
                 } else {
                     statusText.textContent = `Viewing ${selectedCamId} (Waiting...)`;
                 }
             });
-
-            // Double Click: Triggers Fullscreen
-            feed.addEventListener('dblclick', function() {
-                toggleFullScreen(this);
-            });
+            feed.addEventListener('dblclick', function() { toggleFullScreen(this); });
         });
 
-        // --- INITIALIZATION ---
         setInterval(fetchLightStatus, 2000); 
 
-        // --- CAMERA CONTROLS ---
         cameraBtn.addEventListener("click", async () => {
             cameraOn = !cameraOn;
             if (cameraOn) {
                 const t = new Date().getTime();
                 cam1.src = "/video_feed_1?t=" + t; cam2.src = "/video_feed_2?t=" + t; cam3.src = "/video_feed_3?t=" + t;
                 cameraBtn.innerHTML = '<span class="material-icons-round">videocam_off</span> Turn Off';
-                cameraBtn.classList.add("btn-primary"); // Visual toggle
+                cameraBtn.classList.add("btn-primary");
                 statusText.textContent = "Cameras Active";
             } else {
                 cam1.src = ""; cam2.src = ""; cam3.src = "";
@@ -664,14 +635,13 @@
             }
         });
 
-        // --- PEST DETECTION CONTROLS ---
         detectionBtn.addEventListener("click", async () => {
             if (!cameraOn && !detecting) return alert("Please turn on the camera first.");
             if (!detecting) {
                 await fetch("/api/start", { method: "POST" });
                 detecting = true; 
                 detectionBtn.innerHTML = '<span class="material-icons-round">stop</span> Stop Detect';
-                detectionBtn.style.backgroundColor = "#d32f2f";
+                detectionBtn.style.backgroundColor = "#ef4444";
                 statusText.textContent = "Detecting..."; pollInterval = setInterval(fetchDetectionStatus, 1000);
             } else {
                 stopDetection();
@@ -684,11 +654,9 @@
             detectionBtn.innerHTML = '<span class="material-icons-round">play_arrow</span> Start Detect';
             detectionBtn.style.backgroundColor = "";
             statusText.textContent = "Stopped"; clearInterval(pollInterval); resetCards();
-            
-            // Reset Badges
-            document.getElementById("badge-cam1").style.background = "rgba(0,0,0,0.6)";
-            document.getElementById("badge-cam2").style.background = "rgba(0,0,0,0.6)";
-            document.getElementById("badge-cam3").style.background = "rgba(0,0,0,0.6)";
+            document.getElementById("badge-cam1").style.background = "rgba(15,23,42,0.75)";
+            document.getElementById("badge-cam2").style.background = "rgba(15,23,42,0.75)";
+            document.getElementById("badge-cam3").style.background = "rgba(15,23,42,0.75)";
         }
 
         cancelBtn.addEventListener("click", () => {
@@ -699,23 +667,19 @@
         function resetCards() {
             Object.values(fields).forEach(el => { if(el.tagName === 'DIV') el.innerText = "—"; });
             fields.photo.innerHTML = "<span>Subject Photo</span>";
-            statusTextBox.style.backgroundColor = "#e8f5e9"; statusTextBox.style.color = "#1b5e20";
-            fields.card.style.borderTopColor = "#2e7d32";
+            statusTextBox.style.backgroundColor = "var(--primary-light)"; statusTextBox.style.color = "var(--primary-dark)";
         }
 
-        // --- ARDUINO LIGHT CONTROL LOGIC ---
         async function fetchLightStatus() {
             try {
                 const res = await fetch('/api/light/status');
                 const data = await res.json();
-                
                 document.getElementById('uvValue').innerText = data.uv;
                 document.getElementById('lightStatus').innerText = data.light;
                 document.getElementById('lightMode').innerText = data.mode;
-                
                 const statusEl = document.getElementById('lightStatus');
-                if (data.light === "ON") statusEl.style.color = "#4ade80"; // Green for Active in Dark Mode
-                else statusEl.style.color = "#ef4444"; // Red for OFF
+                if (data.light === "ON") statusEl.style.color = "#4ade80"; 
+                else statusEl.style.color = "#fca5a5"; 
             } catch (e) { console.error("Light Connection Error", e); }
         }
 
@@ -730,20 +694,32 @@
             } catch (e) { alert("Failed to send command to Arduino"); }
         }
 
-        // --- PEST STATUS LOGIC ---
+        async function reloadModel() {
+            const btn = document.getElementById("reloadModelBtn");
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round">hourglass_empty</span> Loading...';
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/reload_model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_path: 'new_best.pt' })
+                });
+                const data = await res.json();
+                if (data.success) { alert(data.message); } else { alert("Failed to reload model: " + data.error); }
+            } catch (e) { alert("Error connecting to server."); }
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+
         async function fetchDetectionStatus() {
             try {
                 const res = await fetch("/api/status");
                 const data = await res.json();
                 if (!data.running && detecting) return stopDetection();
-                
                 latestStatusData = data;
-
                 if (data.cameras) {
-                    // 1. Update the central UI for WHICHEVER camera is currently selected
                     updateUIForSelectedCam(data.cameras[selectedCamId]);
-                    
-                    // 2. Update the background red badges for ALL cameras independently
                     updateCameraBadges(data.cameras);
                 }
             } catch (err) { console.error(err); }
@@ -751,37 +727,30 @@
 
         function updateUIForSelectedCam(camData) {
             if (!camData) return;
-            
             if (camData.status_text && camData.status_text.includes("AI is Analyzing")) {
                 statusText.textContent = `[${selectedCamId}] AI Identifying...`;
-                statusTextBox.style.backgroundColor = "#fff3cd"; statusTextBox.style.color = "#856404";
+                statusTextBox.style.backgroundColor = "#fef3c7"; statusTextBox.style.color = "#b45309";
                 fields.name.textContent = "Analyzing..."; 
                 return;
             }
-
             if (camData.pest_name && camData.pest_name !== "—" && camData.pest_name !== "Unknown") {
                 fields.name.textContent = camData.pest_name; 
                 statusText.textContent = `[${selectedCamId}] ${camData.status_text}`;
-                
                 const isNonNative = camData.classification && camData.classification.includes("Non-Native");
-                const color = isNonNative ? "#d32f2f" : "#2e7d32";
-                const bg = isNonNative ? "#fee2e2" : "#e8f5e9";
-                
+                const color = isNonNative ? "var(--danger)" : "var(--primary)";
+                const bg = isNonNative ? "#fee2e2" : "var(--primary-light)";
                 statusTextBox.style.backgroundColor = bg; statusTextBox.style.color = color; 
-                fields.card.style.borderTopColor = color; fields.class.style.color = color;
-
+                fields.class.style.color = color;
                 fields.sci.innerText = camData.scientific_name; fields.class.innerText = camData.classification;
                 fields.cult.innerText = camData.cultural; fields.bio.innerText = camData.biological;
                 fields.san.innerText = camData.sanitation; fields.mech.innerText = camData.mechanical;
                 fields.chem.innerText = camData.chemical;
-
                 if (camData.pest_photo) fields.photo.innerHTML = `<img src="${camData.pest_photo}" style="width:100%;height:100%;object-fit:cover;">`;
             } else {
                 fields.name.textContent = "—";
                 statusText.textContent = `[${selectedCamId}] Scanning...`;
-                statusTextBox.style.backgroundColor = "#e8f5e9"; statusTextBox.style.color = "#1b5e20";
-                fields.card.style.borderTopColor = "#2e7d32"; fields.class.style.color = "var(--text-main)";
-                
+                statusTextBox.style.backgroundColor = "var(--primary-light)"; statusTextBox.style.color = "var(--primary-dark)";
+                fields.class.style.color = "var(--text-main)";
                 fields.sci.innerText = "—"; fields.class.innerText = "—";
                 fields.cult.innerText = "—"; fields.bio.innerText = "—";
                 fields.san.innerText = "—"; fields.mech.innerText = "—";
@@ -794,31 +763,25 @@
             const c1 = cameras["CAM 1"];
             const b1 = document.getElementById("badge-cam1");
             if (c1 && c1.pest_name !== "—" && c1.pest_name !== "Unknown" && c1.pest_name !== "Identifying...") {
-                b1.style.background = "rgba(239, 68, 68, 0.9)"; // Red Alert
-            } else { b1.style.background = "rgba(0,0,0,0.6)"; }
+                b1.style.background = "rgba(239, 68, 68, 0.95)"; b1.style.borderColor = "#ef4444";
+            } else { b1.style.background = "rgba(15,23,42,0.75)"; b1.style.borderColor = "rgba(255,255,255,0.1)"; }
 
             const c2 = cameras["CAM 2"];
             const b2 = document.getElementById("badge-cam2");
             if (c2 && c2.pest_name !== "—" && c2.pest_name !== "Unknown" && c2.pest_name !== "Identifying...") {
-                b2.style.background = "rgba(239, 68, 68, 0.9)";
-            } else { b2.style.background = "rgba(0,0,0,0.6)"; }
+                b2.style.background = "rgba(239, 68, 68, 0.95)"; b2.style.borderColor = "#ef4444";
+            } else { b2.style.background = "rgba(15,23,42,0.75)"; b2.style.borderColor = "rgba(255,255,255,0.1)"; }
 
             const c3 = cameras["CAM 3"];
             const b3 = document.getElementById("badge-cam3");
             if (c3 && c3.pest_name !== "—" && c3.pest_name !== "Unknown" && c3.pest_name !== "Identifying...") {
-                b3.style.background = "rgba(239, 68, 68, 0.9)";
-            } else { b3.style.background = "rgba(0,0,0,0.6)"; }
+                b3.style.background = "rgba(239, 68, 68, 0.95)"; b3.style.borderColor = "#ef4444";
+            } else { b3.style.background = "rgba(15,23,42,0.75)"; b3.style.borderColor = "rgba(255,255,255,0.1)"; }
         }
 
-        // --- MODAL & ANALYTICS ---
-        function openModal() {
-            modal.style.display = "block";
-            fetchPestList();
-            loadAnalytics();
-        }
+        function openModal() { modal.style.display = "block"; fetchPestList(); loadAnalytics(); }
         function closeModal() { modal.style.display = "none"; }
-        window.onclick = (e) => { if (e.target == modal) closeModal(); }
-
+        
         async function fetchPestList() {
             try {
                 const res = await fetch('/api/analytics/pest-options');
@@ -838,51 +801,24 @@
             const pest = pestSelect.value;
             const start = document.getElementById('startDate').value;
             const end = document.getElementById('endDate').value;
-            
             let url, chartLabel, chartType;
-
             if (pest === 'all') {
                 url = `/api/analytics/pest-frequency?start=${start}&end=${end}`;
-                chartLabel = "Total Detections";
-                chartType = "bar";
+                chartLabel = "Total Detections"; chartType = "bar";
             } else {
                 url = `/api/analytics/pest-timeline?pest=${encodeURIComponent(pest)}&start=${start}&end=${end}`;
-                chartLabel = `Detections of ${pest} over time`;
-                chartType = "line";
+                chartLabel = `Detections of ${pest} over time`; chartType = "line";
             }
-
             try {
                 const response = await fetch(url);
                 const data = await response.json();
                 if (!data.success) return;
-
                 const ctx = document.getElementById('pestChart').getContext('2d');
                 if (pestChart) pestChart.destroy();
-
                 pestChart = new Chart(ctx, {
                     type: chartType,
-                    data: {
-                        labels: data.labels,
-                        datasets: [{
-                            label: chartLabel,
-                            data: data.values,
-                            backgroundColor: chartType === 'bar' ? '#2e7d32' : 'rgba(46, 125, 50, 0.2)',
-                            borderColor: '#1b5e20',
-                            borderWidth: 2,
-                            borderRadius: 4,
-                            fill: chartType === 'line',
-                            tension: 0.3
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: true } },
-                        scales: {
-                            y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                            x: { grid: { display: false } }
-                        }
-                    }
+                    data: { labels: data.labels, datasets: [{ label: chartLabel, data: data.values, backgroundColor: chartType === 'bar' ? '#2e7d32' : 'rgba(46, 125, 50, 0.2)', borderColor: '#1b5e20', borderWidth: 2, borderRadius: 4, fill: chartType === 'line', tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } }
                 });
             } catch (err) { console.error("Analytics Error:", err); }
         }
