@@ -19,12 +19,38 @@ from urllib.parse import urlparse
 import csv
 import io
 import serial
+import yaml
+import glob
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_fallback_key')
 app.permanent_session_lifetime = timedelta(seconds=int(os.getenv('SESSION_TIMEOUT_SEC', '900')))
+
+# ================== DIRECTORY CONFIGURATION ==================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Database paths
+DB_DIR = os.path.join(BASE_DIR, 'database')
+DATABASE = os.path.join(DB_DIR, 'pests_add.db')
+
+# Static image folders (for the web interface)
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
+HISTORY_FOLDER = os.path.join(BASE_DIR, 'static', 'history')
+
+# Active Learning dataset folders (for YOLO retraining)
+DATASET_DIR = os.path.join(BASE_DIR, 'dataset')
+DATASET_IMG_DIR = os.path.join(DATASET_DIR, 'images')
+DATASET_LBL_DIR = os.path.join(DATASET_DIR, 'labels')
+ACTIVE_LEARNING_CLASSES_FILE = os.path.join(DATASET_DIR, 'classes.json')
+
+# Tell Flask where uploads go
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Automatically create these folders if they don't exist yet
+for folder in [DB_DIR, UPLOAD_FOLDER, HISTORY_FOLDER, DATASET_IMG_DIR, DATASET_LBL_DIR]:
+    os.makedirs(folder, exist_ok=True)
 
 # --- SERIAL CONFIGURATION ---
 SERIAL_PORT = 'COM4' # Change to your Arduino Port (e.g., /dev/ttyUSB0 on Linux)
@@ -108,38 +134,20 @@ if not OPENROUTER_API_KEY:
 if not GITHUB_TOKEN:
     print("⚠️ WARNING: GITHUB_TOKEN not found (GitHub Vision fallback disabled)")
 
-# ================== GLOBAL STATE & LOCKS (UPDATED FOR MULTI-CAM) ==================
+# ================== GLOBAL STATE & LOCKS ==================
 frame_lock = threading.Lock()
 db_lock = threading.Lock()
+training_lock = threading.Lock() # <-- NEW
 
 is_detection_running = False      
+is_training_active = False       # <-- NEW
 
-# Individual tracking for each camera
+# Individual tracking for each camera WITH Background Subtractors
 cam_states = {
-    "CAM 1": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0},
-    "CAM 2": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0},
-    "CAM 3": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0}
+    "CAM 1": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0, "bg_subtractor": cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=False)},
+    "CAM 2": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0, "bg_subtractor": cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=False)},
+    "CAM 3": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0, "bg_subtractor": cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=False)}
 }
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DB_DIR = os.path.join(BASE_DIR, 'database')
-DATABASE = os.path.join(DB_DIR, 'pests_add.db') 
-
-STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
-UPLOAD_FOLDER = os.path.join(STATIC_FOLDER, 'uploads')
-HISTORY_FOLDER = os.path.join(STATIC_FOLDER, 'history') 
-
-# --- ACTIVE LEARNING DIRECTORIES ---
-DATASET_DIR = os.path.join(BASE_DIR, 'dataset')
-DATASET_IMG_DIR = os.path.join(DATASET_DIR, 'images')
-DATASET_LBL_DIR = os.path.join(DATASET_DIR, 'labels')
-ACTIVE_LEARNING_CLASSES_FILE = os.path.join(DATASET_DIR, 'classes.json')
-
-os.makedirs(DB_DIR, exist_ok=True)
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(HISTORY_FOLDER, exist_ok=True) 
-os.makedirs(DATASET_IMG_DIR, exist_ok=True)
-os.makedirs(DATASET_LBL_DIR, exist_ok=True)
 
 # ================== ACTIVE LEARNING HELPERS ==================
 
@@ -171,6 +179,54 @@ def check_dataset_threshold(pest_name, threshold=50):
     
     if count >= threshold:
         print(f"🌟 ACTIVE LEARNING ALERT: Accumulated {count} images for {pest_name}! Ready for retraining.")
+        # Fire off the background training thread
+        threading.Thread(target=train_yolo_background, daemon=True).start()
+
+def train_yolo_background():
+    global model, is_detection_running, is_training_active, frame_lock
+    
+    with training_lock:
+        if is_training_active: return
+        is_training_active = True
+
+    try:
+        print("⚙️ INITIATING ACTIVE LEARNING: Pausing inference for model training...")
+        is_detection_running = False 
+        
+        with open(ACTIVE_LEARNING_CLASSES_FILE, 'r') as f:
+            classes_dict = json.load(f)
+        
+        names_list = [name for name, _ in sorted(classes_dict.items(), key=lambda item: item[1])]
+        
+        yaml_data = {
+            'train': os.path.join(DATASET_DIR, 'images'),
+            'val': os.path.join(DATASET_DIR, 'images'), 
+            'nc': len(names_list),
+            'names': names_list
+        }
+        
+        yaml_path = os.path.join(DATASET_DIR, 'data.yaml')
+        with open(yaml_path, 'w') as f:
+            yaml.dump(yaml_data, f)
+
+        print("🧠 Training new weights on CPU...")
+        # Run training (keep epochs low for fast updates)
+        results = model.train(data=yaml_path, epochs=10, imgsz=640, device='cpu', exist_ok=True) 
+        
+        with frame_lock:
+            list_of_runs = glob.glob('runs/detect/train*')
+            if list_of_runs:
+                latest_run = max(list_of_runs, key=os.path.getctime)
+                new_model_path = os.path.join(latest_run, 'weights', 'best.pt')
+                if os.path.exists(new_model_path):
+                    print(f"🔄 Hot-swapping to updated model: {new_model_path}")
+                    model = YOLO(new_model_path)
+    except Exception as e:
+        print(f"❌ CRITICAL ERROR during active learning: {e}")
+    finally:
+        is_detection_running = True
+        is_training_active = False
+        print("▶️ SYSTEM RESUMED: Live detection active with updated knowledge.")
 
 # ================== GRAPH ====================
 
@@ -531,9 +587,22 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
 
 def start_ai_analysis_thread(frame_image, cam_id, x1, y1, x2, y2, frame_w, frame_h):
     try:
+        # Add a 20-pixel pad around the bug for context
+        pad = 20
+        y1_p = max(0, y1 - pad)
+        y2_p = min(frame_h, y2 + pad)
+        x1_p = max(0, x1 - pad)
+        x2_p = min(frame_w, x2 + pad)
+        
+        # Crop the image!
+        cropped_img = frame_image[y1_p:y2_p, x1_p:x2_p]
+
         temp_filename = f"unknown_{cam_id.replace(' ', '')}_{int(time.time())}.jpg"
         temp_path = os.path.join(UPLOAD_FOLDER, temp_filename)
-        cv2.imwrite(temp_path, frame_image)
+        
+        # Save only the zoomed-in cropped image
+        cv2.imwrite(temp_path, cropped_img)
+        
         process_unknown_pest_background(temp_path, cam_id, x1, y1, x2, y2, frame_w, frame_h)
         
     except Exception as e:
@@ -794,12 +863,25 @@ def process_camera_frame(frame, cam_id):
     best_conf = 0.0
     best_pest = None
 
-    # Implement thread safety for model inference (Crucial if model is being hot-swapped)
     with frame_lock:
         local_model = model
         
+        # --- FACTOR 1: Background Subtraction ---
+        fg_mask = state["bg_subtractor"].apply(frame)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
+        contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        moving_boxes = []
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if 300 < area < 15000: # Ignore tiny specs of noise
+                cx1, cy1, cw, ch = cv2.boundingRect(contour)
+                moving_boxes.append((cx1, cy1, cx1 + cw, cy1 + ch))
+
+        # --- FACTOR 2: YOLO Inference ---
         if local_model:
-            results = local_model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
+            results = local_model(frame, stream=True, conf=0.15, verbose=False, agnostic_nms=True)
             
             for r in results:
                 for box in r.boxes:
@@ -812,9 +894,10 @@ def process_camera_frame(frame, cam_id):
                     elif "Weaver Ant" in raw_label: label = "Weaver Ant"
                     
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
+                    if not is_detection_logical(raw_label, (x2-x1), (y2-y1), frame_w, frame_h):
                         continue
 
+                    # Scenario A: High Confidence Known Pest
                     if conf > 0.55:
                         pest_found_in_this_frame = True
                         best_conf, best_pest = conf, label
@@ -825,9 +908,7 @@ def process_camera_frame(frame, cam_id):
                             img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
                             img_path = os.path.join(HISTORY_FOLDER, img_name)
                             cv2.imwrite(img_path, annotated_frame)
-                            
                             log_detection_event(label, f"history/{img_name}", "Live Detection", camera_id=cam_id)
-                            
                             state["last_logged"] = label
                             state["last_log_time"] = now
 
@@ -835,26 +916,34 @@ def process_camera_frame(frame, cam_id):
                         cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1-10), 
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                     
-                    elif 0.25 < conf <= 0.55:
-                        pest_found_in_this_frame = True
-                        if state["ai_override"]:
-                            best_pest = state["ai_override"]
-                            display_text, color = f"AI: {best_pest}", (0, 255, 0)
-                        else:
-                            best_pest = "Unknown"
-                            display_text, color = "Analyzing..." if state["ai_processing"] else "Unknown", (0, 0, 255)
-                            
-                            now = time.time()
-                            if not state["ai_processing"] and (now - state["last_request"] > 10):
-                                state["last_request"] = now
-                                state["ai_processing"] = True
-                                # Pass bounding box details to the thread
-                                threading.Thread(target=start_ai_analysis_thread, args=(frame.copy(), cam_id, x1, y1, x2, y2, frame_w, frame_h)).start()
+                    # Scenario B: Hybrid Check (Low Confidence + Movement = Unknown)
+                    elif 0.15 < conf <= 0.55:
+                        is_moving_anomaly = False
+                        for (mx1, my1, mx2, my2) in moving_boxes:
+                            if mx1 < x2 and mx2 > x1 and my1 < y2 and my2 > y1:
+                                is_moving_anomaly = True
+                                break
+                        
+                        if is_moving_anomaly:
+                            pest_found_in_this_frame = True
+                            if state["ai_override"]:
+                                best_pest = state["ai_override"]
+                                display_text, color = f"AI: {best_pest}", (0, 255, 0)
+                            else:
+                                best_pest = "Unknown"
+                                display_text, color = "Analyzing..." if state["ai_processing"] else "Unknown", (0, 0, 255)
+                                
+                                now = time.time()
+                                if not state["ai_processing"] and (now - state["last_request"] > 10):
+                                    state["last_request"] = now
+                                    state["ai_processing"] = True
+                                    threading.Thread(target=start_ai_analysis_thread, 
+                                                     args=(frame.copy(), cam_id, x1, y1, x2, y2, frame_w, frame_h)).start()
 
-                        cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
-                        cv2.putText(annotated_frame, display_text, (x1, y1-10), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
+                            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                            cv2.putText(annotated_frame, display_text, (x1, y1-10), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    
     if pest_found_in_this_frame:
         state["detected_pest"] = best_pest
         state["confidence"] = best_conf
