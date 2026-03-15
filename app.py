@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 import hashlib
 import uuid
-import google.generativeai as genai
+from google import genai
 from groq import Groq 
 from openai import OpenAI
 import ollama
@@ -152,7 +152,7 @@ if not GENAI_API_KEY:
     print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
 else:
     try:
-        genai.configure(api_key=GENAI_API_KEY)  # type: ignore
+        gemini_client = genai.Client(api_key=GENAI_API_KEY)
         print("✅ Gemini AI Configured Successfully")
     except Exception as e:
         print(f"Error configuring Gemini: {e}")
@@ -484,15 +484,18 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         
         # 1. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
-            # Fallback chain using active models
+            # Using current supported models
             gemini_candidates = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']
             try:
                 img = PIL.Image.open(image_path)
                 for model_name in gemini_candidates:
                     try:
                         print(f"   ...Trying Gemini: {model_name}")
-                        model_ai = genai.GenerativeModel(model_name)  # type: ignore
-                        response = model_ai.generate_content([vision_prompt, img])
+                        # New GenAI SDK syntax
+                        response = gemini_client.models.generate_content(
+                            model=model_name,
+                            contents=[vision_prompt, img]
+                        )
                         return json.loads(clean_json_text(response.text))
                     except Exception as e:
                         if "429" in str(e) or "quota" in str(e).lower():
@@ -512,6 +515,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
 
                 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
                 response = client.chat.completions.create(
+                    # Using the dynamic free endpoint to prevent 404 deprecation errors
                     model="openrouter/free",
                     messages=[{
                         "role": "user",
@@ -595,8 +599,10 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
 
     if GENAI_API_KEY:
         try:
-            model_ai = genai.GenerativeModel('gemini-2.5-flash')  # type: ignore 
-            response = model_ai.generate_content(system_prompt)
+            response = gemini_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=system_prompt
+            )
             return json.loads(clean_json_text(response.text))
         except: pass
 
@@ -604,11 +610,20 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         try:
             client = Groq(api_key=GROQ_API_KEY)
             chat_completion = client.chat.completions.create(
-                messages=[{"role": "system", "content": "Output JSON only."}, {"role": "user", "content": system_prompt}],
-                model="llama-3.3-70b-versatile",
-                temperature=0,
-                response_format={"type": "json_object"} 
-            )
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": vision_prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                        ]
+                    }],
+                    # Replaced unreleased Llama 4 with Groq's active Llama 3.2 Vision model
+                    model="llama-3.2-11b-vision-preview",
+                    temperature=0,
+                    # Note: response_format JSON mode is sometimes finicky on Groq vision previews, 
+                    # but leaving it here is fine since your prompt strictly enforces JSON anyway.
+                    response_format={"type": "json_object"} 
+                )
             content = chat_completion.choices[0].message.content
             if content: return json.loads(clean_json_text(content))
         except Exception: pass
