@@ -53,6 +53,7 @@ PEST_ALIASES = {
     "Cutworm Larva": "Cutworm",
     "Cutworm Moth": "Cutworm",
     "Coconut Slug Caterpillar": "Slug Caterpillar",
+    "Asian Weaver Ant": "Weaver Ant",
     "Weaver Ant Cluster": "Weaver Ant",
     "Gray Borer Generic": "Gray Borer"
 }
@@ -231,12 +232,18 @@ def get_pest_timeline():
     conn = sqlite3.connect(DATABASE)
     cur = conn.cursor()
     
+    # Default to past 30 days if no dates are manually selected
+    if not start_date or not end_date:
+        end_dt = datetime.datetime.now()
+        start_dt = end_dt - datetime.timedelta(days=30)
+        start_date = start_dt.strftime('%Y-%m-%d')
+        end_date = end_dt.strftime('%Y-%m-%d')
+
     query = "SELECT strftime('%Y-%m-%d', timestamp) as date, COUNT(*) FROM history WHERE yolo_name = ?"
     params = [pest_name]
     
-    if start_date and end_date:
-        query += " AND timestamp BETWEEN ? AND ?"
-        params.extend([f"{start_date} 00:00:00", f"{end_date} 23:59:59"])
+    query += " AND timestamp BETWEEN ? AND ?"
+    params.extend([f"{start_date} 00:00:00", f"{end_date} 23:59:59"])
     
     query += " GROUP BY date ORDER BY date ASC"
     
@@ -261,14 +268,15 @@ def get_pest_frequency():
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
-        query = "SELECT yolo_name, COUNT(*) as count FROM history"
-        params = []
-        
-        if start_date and end_date:
-            query += " WHERE timestamp BETWEEN ? AND ?"
-            params.extend([f"{start_date} 00:00:00", f"{end_date} 23:59:59"])
-        
-        query += " GROUP BY yolo_name ORDER BY count DESC"
+        # Default to past 30 days if no dates are manually selected
+        if not start_date or not end_date:
+            end_dt = datetime.datetime.now()
+            start_dt = end_dt - datetime.timedelta(days=30)
+            start_date = start_dt.strftime('%Y-%m-%d')
+            end_date = end_dt.strftime('%Y-%m-%d')
+
+        query = "SELECT yolo_name, COUNT(*) as count FROM history WHERE timestamp BETWEEN ? AND ? GROUP BY yolo_name ORDER BY count DESC"
+        params = [f"{start_date} 00:00:00", f"{end_date} 23:59:59"]
         
         cur.execute(query, params)
         results = cur.fetchall()
