@@ -340,9 +340,8 @@ def close_db(error):
 def send_pest_email(pest_name, camera_id):
 
     try:
-        user_email = session.get('user_email')
-        notification_email = GMAIL_NOTIFICATION_EMAIL  # hera25096@gmail.com
-        if not EMAIL_SENDER or not EMAIL_PASSWORD or not notification_email:
+        user_email = session.get('user_email', GMAIL_NOTIFICATION_EMAIL)
+        if not EMAIL_SENDER or not EMAIL_PASSWORD or not user_email:
             print("⚠️ Email configuration missing.")
             return
 
@@ -357,12 +356,10 @@ Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 This alert was generated automatically by the AI Pest Detection System.
 """
-        if user_email:
-            body += f"\nForward to user: {user_email}"
 
         msg = MIMEMultipart()
         msg["From"] = EMAIL_SENDER
-        msg["To"] = notification_email
+        msg["To"] = user_email
         msg["Subject"] = subject
 
         msg.attach(MIMEText(body, "plain"))
@@ -371,10 +368,10 @@ This alert was generated automatically by the AI Pest Detection System.
         server.starttls()
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
 
-        server.sendmail(EMAIL_SENDER, notification_email, msg.as_string())
+        server.sendmail(EMAIL_SENDER, user_email, msg.as_string())
         server.quit()
 
-        print(f"📧 Email sent to {notification_email}: {pest_name} detected on {camera_id}" + (f" (forward to {user_email})" if user_email else ""))
+        print(f"📧 Email sent to {user_email}: {pest_name} detected on {camera_id}")
 
     except Exception as e:
         print(f"❌ Email error: {e}")
@@ -793,7 +790,6 @@ except:
 
 # ================== LOGGING & CAMERA ==================
 def log_detection_event(pest_name, image_path, detection_type, camera_id="CAM 1"):
-    global cam_states
     with db_lock:
         try:
             conn = sqlite3.connect(DATABASE, timeout=10)
@@ -811,14 +807,8 @@ def log_detection_event(pest_name, image_path, detection_type, camera_id="CAM 1"
             conn.close()
         except Exception as e:
             print(f"Error logging history: {e}")
-        # Send email notification with cooldown
-        if camera_id in cam_states:
-            if time.time() - cam_states[camera_id]["last_email_time"] > 300:  # 5 minutes cooldown for live detection
-                send_pest_email(pest_name, camera_id)
-                cam_states[camera_id]["last_email_time"] = time.time()
-        else:
-            # For non-live detections (e.g., upload), send immediately without cooldown
-            send_pest_email(pest_name, camera_id)
+        # Send email notification
+        send_pest_email(pest_name, camera_id)
 
 cams: dict[int, cv2.VideoCapture | None] = {0: None, 1: None, 2: None}
 
@@ -1118,8 +1108,7 @@ def api_start():
     is_detection_running = True
     for cam in cam_states:
         cam_states[cam]["last_logged"] = None 
-        cam_states[cam]["last_log_time"] = 0
-        cam_states[cam]["last_email_time"] = 0  # Reset email cooldown on start
+        cam_states[cam]["last_log_time"] = 0  
     return jsonify({'status': 'Detection started'})
 
 @app.route('/api/stop', methods=['POST'])
@@ -1131,39 +1120,6 @@ def api_stop():
         cam_states[cam]["ai_override"] = None
         cam_states[cam]["ai_processing"] = False
     return jsonify({'status': 'Detection stopped'})
-
-@app.route('/api/test_detection', methods=['POST'])
-def api_test_detection():
-    """Test detection with a sample image"""
-    try:
-        # Create a test image with some pattern that might trigger detection
-        test_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        # Add some white rectangle that might be detected as a pest
-        cv2.rectangle(test_frame, (200, 200), (400, 300), (255, 255, 255), -1)
-        
-        # Process the frame
-        result = process_camera_frame(test_frame, "CAM 1")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Test detection completed',
-            'model_loaded': model is not None
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'model_loaded': model is not None
-        })
-
-@app.route('/api/debug')
-def api_debug():
-    """Debug endpoint to check system status"""
-    return jsonify({
-        'model_loaded': model is not None,
-        'detection_running': is_detection_running,
-        'cameras': {cam: {'detected': state.get('detected_pest', 'None')} for cam, state in cam_states.items()}
-    })
 
 @app.route('/api/status')
 def api_status():
@@ -1181,13 +1137,11 @@ def api_status():
         for cam_id in ["CAM 1", "CAM 2", "CAM 3"]:
             state = cam_states[cam_id]
             
-            # Clear detection timeout per camera
             if state["detected_pest"] and time.time() > state["timeout"]:
                 state["detected_pest"] = ""
                 state["ai_override"] = None
                 state["ai_cache"] = None
 
-            # 1. Determine Current Name (Prioritize Override from Gemini)
             current_name = state["ai_override"] or state["detected_pest"]
             
             cam_res = {
@@ -1198,7 +1152,6 @@ def api_status():
             }
             
             if current_name:
-                # Priority 2: SESSION CACHE (If "Unknown" but previously identified)
                 if current_name == "Unknown":
                     if state["ai_processing"]:
                         cam_res.update({"status_text": "🤖 AI is Analyzing...", "pest_name": "Identifying..."})
@@ -1211,7 +1164,6 @@ def api_status():
                     else:
                         cam_res['status_text'] = "Unknown Object Detected"
                 else:
-                    # Priority 1: LOCAL DATABASE LOOKUP
                     cur.execute("SELECT * FROM pests WHERE common_name = ? OR yolo_name = ? LIMIT 1", 
                                 (current_name, current_name))
                     pest_info = cur.fetchone()
@@ -1232,18 +1184,13 @@ def api_status():
                             "pest_photo": url_for('static', filename=pest_dict.get('image')) if pest_dict.get('image') else None
                         })
                     elif state["ai_cache"]:
-                        # Use the cache if it's not in the DB yet
-                        cam_res.update({
-                            "status_text": f"AI Identified: {state['ai_cache']['common_name']}",
-                            "pest_name": state['ai_cache']['common_name'],
-                            "scientific_name": state['ai_cache'].get('scientific_name', 'N/A'),
-                            "cultural": state['ai_cache'].get('cultural_methods', '—'),
-                            "biological": state['ai_cache'].get('biological_control', '—'),
-                            "sanitation": state['ai_cache'].get('sanitation', '—'),
-                            "mechanical": state['ai_cache'].get('mechanical_control', '—'),
-                            "chemical": state['ai_cache'].get('chemical_control', '—'),
-                        })
-
+                            cam_res.update({
+                                "status_text": f"AI Identified: {state['ai_cache']['common_name']}",
+                                "pest_name": state['ai_cache']['common_name'],
+                                "scientific_name": state['ai_cache'].get('scientific_name', 'N/A'),
+                                "cultural": state['ai_cache'].get('cultural_methods', '—'),
+                            })
+                        
             response_data["cameras"][cam_id] = cam_res
             
         return jsonify(response_data)
