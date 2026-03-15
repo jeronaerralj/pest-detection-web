@@ -1,0 +1,7 @@
+
+train: C:\Users\PINEPESTIFY\Documents\pest-detection-web\dataset\images
+val: C:\Users\PINEPESTIFY\Documents\pest-detection-web\dataset\images
+
+nc: 34
+names: ['Aloe leaf spot', 'Aloe scale', 'Aloe rust', 'Aloe Snout Weevil', 'Pineapple Crown Rot', 'Acanthopholis snail', 'Agave weevil', 'Pineapple Guava Fruit Borer', 'Snail', 'Garden Snail', 'Ant', 'Brown Garden Snail', 'Giant Land Snail', 'Termite', 'Coconut Rhinoceros Beetle', 'Centipede', 'Ground Beetle', 'Millipede', 'Pig', 'Cockroach', 'Ground beetle', 'Ground Rodent Burrow', 'Thrips', 'Cochineal Insect', 'Cochliotis melanocephala', 'Cochineal Scale', 'Cricket', 'Hawaiian Garden Slug', 'Armyworm', 'Coconut rhinoceros beetle', 'Aphid', 'Hornworm Moth Larva', 'Mealybug', 'Brown Spotted Snake']
+    
