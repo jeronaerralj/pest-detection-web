@@ -346,29 +346,22 @@ def close_db(error):
         db.close()
 # ================== EMAIL NOTIFICATION ==================
 
-def send_pest_email(pest_name, camera_id):
+# ================== EMAIL NOTIFICATION ==================
 
+# Global variable to store email safely across threads
+ACTIVE_USER_EMAIL = None
+
+def _send_email_thread(pest_name, camera_id, target_email):
     try:
-        user_email = session.get('user_email', GMAIL_NOTIFICATION_EMAIL)
-        if not EMAIL_SENDER or not EMAIL_PASSWORD or not user_email:
-            print("⚠️ Email configuration missing.")
+        if not EMAIL_SENDER or not EMAIL_PASSWORD or not target_email:
             return
 
         subject = f"🚨 Pest Detected: {pest_name}"
-
-        body = f"""
-Pest Detection Alert
-
-Pest: {pest_name}
-Camera: {camera_id}
-Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-This alert was generated automatically by the AI Pest Detection System.
-"""
+        body = f"Pest Detection Alert\n\nPest: {pest_name}\nCamera: {camera_id}\nTime: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nThis alert was generated automatically by the AI Pest Detection System."
 
         msg = MIMEMultipart()
         msg["From"] = EMAIL_SENDER
-        msg["To"] = user_email
+        msg["To"] = target_email
         msg["Subject"] = subject
 
         msg.attach(MIMEText(body, "plain"))
@@ -376,14 +369,22 @@ This alert was generated automatically by the AI Pest Detection System.
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-
-        server.sendmail(EMAIL_SENDER, user_email, msg.as_string())
+        server.sendmail(EMAIL_SENDER, target_email, msg.as_string())
         server.quit()
 
-        print(f"📧 Email sent to {user_email}: {pest_name} detected on {camera_id}")
+        print(f"📧 Email sent to {target_email}: {pest_name} detected on {camera_id}")
 
     except Exception as e:
         print(f"❌ Email error: {e}")
+
+def send_pest_email(pest_name, camera_id):
+    global ACTIVE_USER_EMAIL
+    # Prioritize the email the user typed in, fallback to .env default
+    email_to_use = ACTIVE_USER_EMAIL or GMAIL_NOTIFICATION_EMAIL
+    
+    if email_to_use:
+        # Spawn a background thread so the camera feed NEVER freezes waiting for Gmail
+        threading.Thread(target=_send_email_thread, args=(pest_name, camera_id, email_to_use)).start()
 
 # --- STRICT URL ACCESS RESTRICTION ---
 def restrict_url_access(f):
@@ -1086,9 +1087,11 @@ def api_maintenance_resume():
 
 @app.route('/api/start', methods=['POST'])
 def api_start():
-    global is_detection_running, cam_states
+    global is_detection_running, cam_states, ACTIVE_USER_EMAIL
     if request.is_json and request.json and 'email' in request.json:
+        ACTIVE_USER_EMAIL = request.json['email']
         session['user_email'] = request.json['email']
+        
     is_detection_running = True
     for cam in cam_states:
         cam_states[cam]["last_logged"] = None 
@@ -1486,7 +1489,7 @@ def upload():
                     box = results[0].boxes.xyxy[best_conf_index].tolist()
                     x1, y1, x2, y2 = box
                     
-                    if conf > 0.60: # Lowered slightly from 0.70 to be more forgiving on uploads
+                    if conf > 0.60:
                         detected_name = label
                     elif 0.15 < conf <= 0.60:
                         detected_name = "Unknown"
@@ -1585,7 +1588,7 @@ def detection_history():
         conn = sqlite3.connect(pest_db)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        cur.execute("SELECT * FROM history ORDER BY timestamp DESC LIMIT 50")
+        cur.execute("SELECT * FROM history ORDER BY timestamp DESC LIMIT 500")
         history_logs = cur.fetchall()
         return render_template('detection_history.html', logs=history_logs)
     except Exception as e:
