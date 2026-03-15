@@ -484,8 +484,8 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         
         # 1. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
-            # Replaced deprecated experimental models with stable, permanent models
-            gemini_candidates = ['gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
+            # Fallback chain using active models
+            gemini_candidates = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']
             try:
                 img = PIL.Image.open(image_path)
                 for model_name in gemini_candidates:
@@ -512,7 +512,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
 
                 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
                 response = client.chat.completions.create(
-                    model="meta-llama/llama-3.2-11b-vision-instruct:free",
+                    model="openrouter/free",
                     messages=[{
                         "role": "user",
                         "content": [
