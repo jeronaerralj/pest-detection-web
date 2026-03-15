@@ -1485,17 +1485,11 @@ def upload():
 
                     box = results[0].boxes.xyxy[best_conf_index].tolist()
                     x1, y1, x2, y2 = box
-                    box_w = x2 - x1
-                    box_h = y2 - y1
                     
-                    if is_detection_logical(raw_label, box_w, box_h, img_w, img_h):
-                        if conf > 0.70:
-                            detected_name = label
-                        elif 0.25 < conf <= 0.70:
-                            detected_name = "Unknown"
-                    else:
-                        print(f"🚫 Upload: Ignored Logical Fail for {label} ({conf:.2f})")
-                        detected_name = None 
+                    if conf > 0.60: # Lowered slightly from 0.70 to be more forgiving on uploads
+                        detected_name = label
+                    elif 0.15 < conf <= 0.60:
+                        detected_name = "Unknown"
 
             if detected_name == "Unknown" or detected_name is None:
                 print("⚡ Triggering AI Analysis for Upload...")
