@@ -857,28 +857,34 @@
                     <h3 class="card-title"><span class="material-icons-round">videocam</span> Live Feeds</h3>
                 </div>
 
-                <div class="camera-feed main-cam active-cam" data-cam="CAM 1">
-                    <div class="cam-badge" id="badge-cam1">
-                        <div class="live-dot"></div> Main AI
-                    </div>
-                    <img id="camera-img-1" src="" alt="Waiting for stream..." />
-                    <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)"><span
-                            class="material-icons-round">fullscreen</span></div>
-                </div>
+                <div style="display: flex; flex-direction: column; gap: 15px;">
 
-                <div class="sub-cams">
+                    <div class="camera-feed active-cam" data-cam="CAM 1" style="aspect-ratio: 16/9;">
+                        <div class="cam-badge" id="badge-cam1">
+                            <div class="live-dot"></div> Cam 1
+                        </div>
+                        <img id="camera-img-1" src="" alt="Waiting for stream..." />
+                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
+                            <span class="material-icons-round">fullscreen</span>
+                        </div>
+                    </div>
+
                     <div class="camera-feed" data-cam="CAM 2" style="aspect-ratio: 16/9;">
                         <div class="cam-badge" id="badge-cam2">Cam 2</div>
                         <img id="camera-img-2" src="" alt="No Signal" />
-                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)"><span
-                                class="material-icons-round">fullscreen</span></div>
+                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
+                            <span class="material-icons-round">fullscreen</span>
+                        </div>
                     </div>
+
                     <div class="camera-feed" data-cam="CAM 3" style="aspect-ratio: 16/9;">
                         <div class="cam-badge" id="badge-cam3">Cam 3</div>
                         <img id="camera-img-3" src="" alt="No Signal" />
-                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)"><span
-                                class="material-icons-round">fullscreen</span></div>
+                        <div class="expand-btn" onclick="toggleFullScreen(this.parentElement, event)">
+                            <span class="material-icons-round">fullscreen</span>
+                        </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -1459,6 +1465,7 @@
 
                 statusText.textContent = "System Ready";
                 resetCards();
+                window.location.href = "/user";
             }
         });
 

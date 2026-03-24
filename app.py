@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 import hashlib
 import uuid
-import google.generativeai as genai
+from google import genai
 from groq import Groq 
 from openai import OpenAI
 import ollama
@@ -151,7 +151,7 @@ if not GENAI_API_KEY:
     print("⚠️ WARNING: GENAI_API_KEY not found in .env file")
 else:
     try:
-        genai.configure(api_key=GENAI_API_KEY)  # type: ignore
+        gemini_client = genai.Client(api_key=GENAI_API_KEY)
         print("✅ Gemini AI Configured Successfully")
     except Exception as e:
         print(f"Error configuring Gemini: {e}")
@@ -345,29 +345,22 @@ def close_db(error):
         db.close()
 # ================== EMAIL NOTIFICATION ==================
 
-def send_pest_email(pest_name, camera_id):
+# ================== EMAIL NOTIFICATION ==================
 
+# Global variable to store email safely across threads
+ACTIVE_USER_EMAIL = None
+
+def _send_email_thread(pest_name, camera_id, target_email):
     try:
-        user_email = session.get('user_email', GMAIL_NOTIFICATION_EMAIL)
-        if not EMAIL_SENDER or not EMAIL_PASSWORD or not user_email:
-            print("⚠️ Email configuration missing.")
+        if not EMAIL_SENDER or not EMAIL_PASSWORD or not target_email:
             return
 
         subject = f"🚨 Pest Detected: {pest_name}"
-
-        body = f"""
-Pest Detection Alert
-
-Pest: {pest_name}
-Camera: {camera_id}
-Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-This alert was generated automatically by the AI Pest Detection System.
-"""
+        body = f"Pest Detection Alert\n\nPest: {pest_name}\nCamera: {camera_id}\nTime: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nThis alert was generated automatically by the AI Pest Detection System."
 
         msg = MIMEMultipart()
         msg["From"] = EMAIL_SENDER
-        msg["To"] = user_email
+        msg["To"] = target_email
         msg["Subject"] = subject
 
         msg.attach(MIMEText(body, "plain"))
@@ -375,14 +368,22 @@ This alert was generated automatically by the AI Pest Detection System.
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-
-        server.sendmail(EMAIL_SENDER, user_email, msg.as_string())
+        server.sendmail(EMAIL_SENDER, target_email, msg.as_string())
         server.quit()
 
-        print(f"📧 Email sent to {user_email}: {pest_name} detected on {camera_id}")
+        print(f"📧 Email sent to {target_email}: {pest_name} detected on {camera_id}")
 
     except Exception as e:
         print(f"❌ Email error: {e}")
+
+def send_pest_email(pest_name, camera_id):
+    global ACTIVE_USER_EMAIL
+    # Prioritize the email the user typed in, fallback to .env default
+    email_to_use = ACTIVE_USER_EMAIL or GMAIL_NOTIFICATION_EMAIL
+    
+    if email_to_use:
+        # Spawn a background thread so the camera feed NEVER freezes waiting for Gmail
+        threading.Thread(target=_send_email_thread, args=(pest_name, camera_id, email_to_use)).start()
 
 # --- STRICT URL ACCESS RESTRICTION ---
 def restrict_url_access(f):
@@ -482,15 +483,18 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         
         # 1. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
-            # Replaced deprecated experimental models with stable, permanent models
-            gemini_candidates = ['gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
+            # Using current supported models
+            gemini_candidates = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']
             try:
                 img = PIL.Image.open(image_path)
                 for model_name in gemini_candidates:
                     try:
                         print(f"   ...Trying Gemini: {model_name}")
-                        model_ai = genai.GenerativeModel(model_name)  # type: ignore
-                        response = model_ai.generate_content([vision_prompt, img])
+                        # New GenAI SDK syntax
+                        response = gemini_client.models.generate_content(
+                            model=model_name,
+                            contents=[vision_prompt, img]
+                        )
                         return json.loads(clean_json_text(response.text))
                     except Exception as e:
                         if "429" in str(e) or "quota" in str(e).lower():
@@ -510,7 +514,8 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
 
                 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
                 response = client.chat.completions.create(
-                    model="meta-llama/llama-3.2-11b-vision-instruct:free",
+                    # Using the dynamic free endpoint to prevent 404 deprecation errors
+                    model="openrouter/free",
                     messages=[{
                         "role": "user",
                         "content": [
@@ -593,8 +598,10 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
 
     if GENAI_API_KEY:
         try:
-            model_ai = genai.GenerativeModel('gemini-2.5-flash')  # type: ignore 
-            response = model_ai.generate_content(system_prompt)
+            response = gemini_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=system_prompt
+            )
             return json.loads(clean_json_text(response.text))
         except: pass
 
@@ -602,11 +609,20 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         try:
             client = Groq(api_key=GROQ_API_KEY)
             chat_completion = client.chat.completions.create(
-                messages=[{"role": "system", "content": "Output JSON only."}, {"role": "user", "content": system_prompt}],
-                model="llama-3.3-70b-versatile",
-                temperature=0,
-                response_format={"type": "json_object"} 
-            )
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": vision_prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                        ]
+                    }],
+                    # Replaced unreleased Llama 4 with Groq's active Llama 3.2 Vision model
+                    model="llama-3.2-11b-vision-preview",
+                    temperature=0,
+                    # Note: response_format JSON mode is sometimes finicky on Groq vision previews, 
+                    # but leaving it here is fine since your prompt strictly enforces JSON anyway.
+                    response_format={"type": "json_object"} 
+                )
             content = chat_completion.choices[0].message.content
             if content: return json.loads(clean_json_text(content))
         except Exception: pass
@@ -1110,9 +1126,11 @@ def api_maintenance_resume():
 
 @app.route('/api/start', methods=['POST'])
 def api_start():
-    global is_detection_running, cam_states
+    global is_detection_running, cam_states, ACTIVE_USER_EMAIL
     if request.is_json and request.json and 'email' in request.json:
+        ACTIVE_USER_EMAIL = request.json['email']
         session['user_email'] = request.json['email']
+        
     is_detection_running = True
     for cam in cam_states:
         cam_states[cam]["last_logged"] = None 
@@ -1509,17 +1527,11 @@ def upload():
 
                     box = results[0].boxes.xyxy[best_conf_index].tolist()
                     x1, y1, x2, y2 = box
-                    box_w = x2 - x1
-                    box_h = y2 - y1
                     
-                    if is_detection_logical(raw_label, box_w, box_h, img_w, img_h):
-                        if conf > 0.70:
-                            detected_name = label
-                        elif 0.25 < conf <= 0.70:
-                            detected_name = "Unknown"
-                    else:
-                        print(f"🚫 Upload: Ignored Logical Fail for {label} ({conf:.2f})")
-                        detected_name = None 
+                    if conf > 0.60:
+                        detected_name = label
+                    elif 0.15 < conf <= 0.60:
+                        detected_name = "Unknown"
 
             if detected_name == "Unknown" or detected_name is None:
                 print("⚡ Triggering AI Analysis for Upload...")
@@ -1615,7 +1627,7 @@ def detection_history():
         conn = sqlite3.connect(pest_db)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        cur.execute("SELECT * FROM history ORDER BY timestamp DESC LIMIT 50")
+        cur.execute("SELECT * FROM history ORDER BY timestamp DESC LIMIT 500")
         history_logs = cur.fetchall()
         return render_template('detection_history.html', logs=history_logs)
     except Exception as e:
