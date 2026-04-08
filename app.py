@@ -43,7 +43,7 @@ PEST_ALIASES = {
     "Mealybug": "Pineapple Mealybug",
     "mealybug": "Pineapple Mealybug",
     "mealy bug": "Pineapple Mealybug",
-    "Mealybug Cluster": "Pineapple Mealybug",
+    "Mealybug Cluster": "Pineapple Mealybug", # Added
     "Giant African Snail": "Giant African Land Snail",
     "African Snail": "Giant African Land Snail",
     "Oryctes Rhinoceros Beetle": "Rhinoceros Beetle",
@@ -55,8 +55,7 @@ PEST_ALIASES = {
     "Coconut Slug Caterpillar": "Slug Caterpillar",
     "Asian Weaver Ant": "Weaver Ant",
     "Weaver Ant Cluster": "Weaver Ant",
-    "Gray Borer Generic": "Gray Borer",
-    "Western Flower Thrips": "Flower Thrips",
+    "Gray Borer Generic": "Gray Borer"
 }
 
 # ================== DIRECTORY CONFIGURATION ==================
@@ -888,15 +887,19 @@ def process_camera_frame(frame, cam_id):
     state = cam_states[cam_id]
 
     annotated_frame = frame.copy()
+    
+    # --- Extracted frame width and height ---
     frame_h, frame_w = frame.shape[:2]
     
     pest_found_in_this_frame = False
     best_conf = 0.0
     best_pest = None
 
+    moving_boxes = []  # Placeholder for motion detection boxes
+
     if model:
-        # Run YOLO inference ONCE per frame (lowered threshold to catch more potential pests)
-        results = model(frame, stream=True, conf=0.15, verbose=False, agnostic_nms=True)
+        # Run YOLO inference
+        results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
         
         for r in results:
             for box in r.boxes:
@@ -904,63 +907,83 @@ def process_camera_frame(frame, cam_id):
                 conf = float(box.conf[0].item())
                 raw_label = r.names[cls_id]
                 
-                # Apply your alias mapping
+                # Apply your mapping (e.g., merging clusters or life stages)
                 label = PEST_ALIASES.get(raw_label, raw_label)
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
                 
-                # Skip if the bounding box doesn't make logical sense for the pest size
-                if not is_detection_logical(raw_label, (x2-x1), (y2-y1), frame_w, frame_h):
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
+                    continue
+    if model:
+        # Run YOLO inference
+        results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
+        
+        for r in results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0].item())
+                conf = float(box.conf[0].item())
+                raw_label = r.names[cls_id]
+                
+                # Apply your mapping (e.g., merging clusters or life stages)
+                label = PEST_ALIASES.get(raw_label, raw_label)
+                
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
                     continue
 
-                # SCENARIO A: High Confidence Known Pest (Over 60%)
-                if conf > 0.60:
+                # Scenario A: High Confidence Known Pest
+                if conf > 0.70:
                     pest_found_in_this_frame = True
                     best_conf, best_pest = conf, label
 
                     now = time.time()
                     if state["last_logged"] != label or (now - state.get("last_log_time", 0) > 30):
                         timestamp = int(now)
-                        img_name = f"history_{cam_id}_{label.replace(' ', '_')}_{timestamp}.jpg"
+                        img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
                         img_path = os.path.join(HISTORY_FOLDER, img_name)
                         cv2.imwrite(img_path, annotated_frame)
                         log_detection_event(label, f"history/{img_name}", "Live Detection", camera_id=cam_id)
                         state["last_logged"] = label
                         state["last_log_time"] = now
 
-                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1-10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                
-                # SCENARIO B: Low Confidence -> Send to AI for deep analysis
-                # (Removed the broken motion check so it correctly hands off to Gemini/Groq)
-                elif 0.15 < conf <= 0.60:
-                    pest_found_in_this_frame = True
-                    if state["ai_override"]:
-                        best_pest = state["ai_override"]
-                        display_text, color = f"AI: {best_pest}", (0, 255, 0)
-                    else:
-                        best_pest = "Unknown"
-                        display_text, color = "Analyzing..." if state["ai_processing"] else "Unknown", (0, 0, 255)
+                        cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1-10), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    
+                    # Scenario B: Hybrid Check (Low Confidence + Movement = Unknown)
+                    elif 0.15 < conf <= 0.70:
+                        is_moving_anomaly = False
+                        for (mx1, my1, mx2, my2) in moving_boxes:
+                            if mx1 < x2 and mx2 > x1 and my1 < y2 and my2 > y1:
+                                is_moving_anomaly = True
+                                break
                         
-                        now = time.time()
-                        # Only ping the AI API if it isn't currently thinking and 10s have passed
-                        if not state["ai_processing"] and (now - state["last_request"] > 10):
-                            state["last_request"] = now
-                            state["ai_processing"] = True
-                            threading.Thread(target=start_ai_analysis_thread, 
-                                             args=(frame.copy(), cam_id, x1, y1, x2, y2, frame_w, frame_h)).start()
+                        if is_moving_anomaly:
+                            pest_found_in_this_frame = True
+                            if state["ai_override"]:
+                                best_pest = state["ai_override"]
+                                display_text, color = f"AI: {best_pest}", (0, 255, 0)
+                            else:
+                                best_pest = "Unknown"
+                                display_text, color = "Analyzing..." if state["ai_processing"] else "Unknown", (0, 0, 255)
+                                
+                                now = time.time()
+                                if not state["ai_processing"] and (now - state["last_request"] > 10):
+                                    state["last_request"] = now
+                                    state["ai_processing"] = True
+                                    threading.Thread(target=start_ai_analysis_thread, 
+                                                     args=(frame.copy(), cam_id, x1, y1, x2, y2, frame_w, frame_h)).start()
 
-                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
-                    cv2.putText(annotated_frame, display_text, (x1, y1-10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                            cv2.putText(annotated_frame, display_text, (x1, y1-10), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-    # Update the global state so the web dashboard can see it
     if pest_found_in_this_frame:
         state["detected_pest"] = best_pest
         state["confidence"] = best_conf
         state["timeout"] = time.time() + (5.0 if state["ai_override"] else 2.0)
         
         now = time.time()
+        
         if best_pest and best_pest.lower() != "unknown":
             last_log_time = state.get("last_log_time", 0)
             if (now - last_log_time > 10.0):
@@ -975,6 +998,7 @@ def process_camera_frame(frame, cam_id):
                     detection_type="Local Model (YOLO)", 
                     camera_id=cam_id
                 )
+                
                 state["last_logged"] = best_pest
                 state["last_log_time"] = now 
 

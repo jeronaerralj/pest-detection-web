@@ -143,15 +143,8 @@
     }
 
     /* Image Preview */
-    .preview-container {
-      margin-top: 20px;
-      background: #000;
-      border-radius: 8px;
-      overflow: hidden;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      border: 1px solid #ddd;
+    .preview-container.show {
+      display: flex;
     }
 
     .preview-container img {
@@ -346,7 +339,7 @@
           <div class="upload-text">Click to browse or drag file here</div>
         </label>
 
-        <div class="preview-container" id="preview-container" style="display: {% if image_url %}flex{% else %}none{% endif %};">
+        <div class="preview-container{% if image_url %} show{% endif %}" id="preview-container">
           <img id="image-preview" src="{{ image_url or '#' }}" alt="Preview">
         </div>
 
