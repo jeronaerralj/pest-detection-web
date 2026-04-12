@@ -561,7 +561,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                         ]
                     }],
-                    model="llama-3.2-11b-vision-preview",
+                    model="llama-4-scout-17b-16e-instruct",
                     temperature=0,
                     response_format={"type": "json_object"} 
                 )
@@ -630,7 +630,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                         ]
                     }],
                     # Replaced unreleased Llama 4 with Groq's active Llama 3.2 Vision model
-                    model="llama-3.2-11b-vision-preview",
+                    model="llama-4-scout-17b-16e-instruct",
                     temperature=0,
                     # Note: response_format JSON mode is sometimes finicky on Groq vision previews, 
                     # but leaving it here is fine since your prompt strictly enforces JSON anyway.
@@ -683,7 +683,7 @@ def process_unknown_pest_background(image_path, cam_id, x1, y1, x2, y2, frame_w,
                     print(f"✅ FULLY VERIFIED: {identified_name} passed all temporal and confidence checks!")
                     
                     filename = os.path.basename(image_path)
-                    log_detection_event(identified_name, f"uploads/{filename}", "Live AI Detection", camera_id=cam_id)
+                    log_detection_event(identified_name, f"uploads/{filename}", "Live AI Detection", confidence, camera_id=cam_id)
                     
                     cam_states[cam_id]["ai_cache"] = ai_data
                     cam_states[cam_id]["ai_override"] = identified_name
@@ -791,7 +791,8 @@ def init_databases():
             yolo_name TEXT NOT NULL, 
             image_path TEXT,        
             user_session TEXT,      
-            detection_type TEXT      
+            detection_type TEXT,
+            confidence TEXT      
         )
     """)
     conn.commit()
@@ -822,7 +823,9 @@ except:
     model = None
 
 # ================== LOGGING & CAMERA ==================
-def log_detection_event(pest_name, image_path, detection_type, conf_score, camera_id="CAM 1",):
+def log_detection_event(pest_name, image_path, detection_type, confidence=0.0, camera_id="CAM 1",):
+    if confidence <= 1.0 and confidence > 0:
+        confidence = confidence * 100
     with db_lock:
         try:
             conn = sqlite3.connect(DATABASE, timeout=10)
@@ -833,15 +836,15 @@ def log_detection_event(pest_name, image_path, detection_type, conf_score, camer
                 user = 'SYSTEM'
             image_path = image_path.replace('\\', '/')
             conn.execute("""
-                INSERT INTO history (timestamp, yolo_name, image_path, user_session, detection_type, conf_score)
-                VALUES (?, ?, ?, ?, ?)
-            """, (current_time, f"[{camera_id}] {pest_name}", image_path, user, detection_type, conf_score))
+                INSERT INTO history (timestamp, yolo_name, image_path, user_session, detection_type, confidence)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (current_time, f"[{camera_id}] {pest_name}", image_path, user, detection_type, confidence))
             conn.commit()
             conn.close()
         except Exception as e:
             print(f"Error logging history: {e}")
         # Send email notification
-        send_pest_email(pest_name, camera_id)
+        threading.Thread(target=send_pest_email, args=(pest_name, camera_id)).start()
 
 cams: dict[int, cv2.VideoCapture | None] = {0: None, 1: None, 2: None}
 
@@ -934,7 +937,7 @@ def process_camera_frame(frame, cam_id):
                         img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
                         img_path = os.path.join(HISTORY_FOLDER, img_name)
                         cv2.imwrite(img_path, annotated_frame)
-                        log_detection_event(label, f"history/{img_name}", "Live Detection", camera_id=cam_id)
+                        log_detection_event(label, f"history/{img_name}", "Live Detection", conf, camera_id=cam_id)
                         state["last_logged"] = label
                         state["last_log_time"] = now
 
@@ -1056,29 +1059,6 @@ def video_feed_3():
     return Response(generate_frames_cam3(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 # ================== API ROUTES ==================
-
-# To add pop-ups for start detection, add this JavaScript to the HTML template where the start button is:
-# <script>
-# document.getElementById('start-btn').addEventListener('click', function(event) {
-#     event.preventDefault();
-#     const wantNotif = confirm('Do you want to receive a notification if there\'s a pest detected?');
-#     if (wantNotif) {
-#         const email = prompt('Please input your email:');
-#         if (email) {
-#             fetch('/api/start', {
-#                 method: 'POST',
-#                 headers: {'Content-Type': 'application/json'},
-#                 body: JSON.stringify({email: email})
-#             }).then(response => response.json()).then(data => alert(data.status));
-#         } else {
-#             alert('Email is required for notifications.');
-#         }
-#     } else {
-#         fetch('/api/start', {method: 'POST'}).then(response => response.json()).then(data => alert(data.status));
-#     }
-# });
-# </script>
-# Replace 'start-btn' with the actual ID of the start button.
 
 # --- ROUTE: Active Learning Maintenance Controls ---
 @app.route('/api/maintenance/train-now', methods=['POST'])
@@ -1585,7 +1565,7 @@ def upload():
 
             if detected_name and detected_name.lower() != "unknown":
                 formatted_name = detected_name.strip()
-                log_detection_event(formatted_name, f"uploads/{filename}", "Manual Upload", camera_id="Upload")
+                log_detection_event(formatted_name, f"uploads/{filename}", "Manual Upload", conf, camera_id="Upload")
                 conn = get_db()
                 pest_info = conn.execute(
                     "SELECT * FROM pests WHERE common_name = ? COLLATE NOCASE OR yolo_name = ? COLLATE NOCASE",
