@@ -822,7 +822,7 @@ except:
     model = None
 
 # ================== LOGGING & CAMERA ==================
-def log_detection_event(pest_name, image_path, detection_type, camera_id="CAM 1"):
+def log_detection_event(pest_name, image_path, detection_type, conf_score, camera_id="CAM 1",):
     with db_lock:
         try:
             conn = sqlite3.connect(DATABASE, timeout=10)
@@ -833,9 +833,9 @@ def log_detection_event(pest_name, image_path, detection_type, camera_id="CAM 1"
                 user = 'SYSTEM'
             image_path = image_path.replace('\\', '/')
             conn.execute("""
-                INSERT INTO history (timestamp, yolo_name, image_path, user_session, detection_type)
+                INSERT INTO history (timestamp, yolo_name, image_path, user_session, detection_type, conf_score)
                 VALUES (?, ?, ?, ?, ?)
-            """, (current_time, f"[{camera_id}] {pest_name}", image_path, user, detection_type))
+            """, (current_time, f"[{camera_id}] {pest_name}", image_path, user, detection_type, conf_score))
             conn.commit()
             conn.close()
         except Exception as e:
