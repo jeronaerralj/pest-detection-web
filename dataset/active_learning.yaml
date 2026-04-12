@@ -1,7 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
 
-train: C:\Users\PINEPESTIFY\Documents\pest-detection-web\dataset\images
-val: C:\Users\PINEPESTIFY\Documents\pest-detection-web\dataset\images
+nc: 4
+names: ['Giant African Land Snail', 'Rhinoceros Beetle', 'Slug Caterpillar', 'Weaver Ant']
 
-nc: 46
-names: ['Aloe leaf spot', 'Aloe scale', 'Aloe rust', 'Aloe Snout Weevil', 'Pineapple Crown Rot', 'Acanthopholis snail', 'Agave weevil', 'Pineapple Guava Fruit Borer', 'Snail', 'Garden Snail', 'Ant', 'Brown Garden Snail', 'Giant Land Snail', 'Termite', 'Coconut Rhinoceros Beetle', 'Centipede', 'Ground Beetle', 'Millipede', 'Pig', 'Cockroach', 'Ground beetle', 'Ground Rodent Burrow', 'Thrips', 'Cochineal Insect', 'Cochliotis melanocephala', 'Cochineal Scale', 'Cricket', 'Hawaiian Garden Slug', 'Armyworm', 'Coconut rhinoceros beetle', 'Aphid', 'Hornworm Moth Larva', 'Mealybug', 'Brown Spotted Snake', 'Rhino Beetle', 'Spiny Caterpillar', 'Giant African Land Snail', 'Brown Tortoise Beetle', 'Spiny Bamboo Caterpillar', 'Asparagus Miner', 'Woolly Weed', 'Spider Mite', 'Jumping Spider', 'Spiders', 'Spotted Poppy-oak', 'Asparagus Beetles']
-    
+roboflow:
+  workspace: research-vsbxs
+  project: research-vsbxs
+  version: dataset
+  license: Private
+  url: https://app.roboflow.com/research-vsbxs/research-vsbxs/dataset

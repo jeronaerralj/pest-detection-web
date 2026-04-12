@@ -1,95 +1,107 @@
+# train_update.py
 import os
 import json
+import yaml
 import shutil
 import requests
 from ultralytics import YOLO
 
-FLASK_URL = "http://127.0.0.1:5000"
+# (If native.pt class 0 was "Mealybug", Mealybug must be first here).
+BASE_CLASSES = [
+    "Cutworm Larva",
+    "Cutworm Moth",
+    "Flower Thrips",
+    "Gray Borer",
+    "Gray Borer Generic",
+    "Mealybug",
+    "Mealybug Cluster",
+    "Oriental Fruit Fly",
+    "Rhinoceros Beetle",
+    "Slug Caterpillar",
+    "Weaver Ant",
+    "Weaver Ant Cluster"
+]
 
-def run_active_learning():
-    dataset_dir = os.path.abspath('dataset')
-    img_dir = os.path.join(dataset_dir, 'images')
-    lbl_dir = os.path.join(dataset_dir, 'labels')
-    yaml_path = os.path.join(dataset_dir, 'active_learning.yaml')
-    classes_file = os.path.join(dataset_dir, 'classes.json')
+DATASET_DIR = os.path.abspath('dataset')
+CLASSES_JSON_PATH = os.path.join(DATASET_DIR, 'classes.json')
+YAML_OUTPUT_PATH = os.path.join(DATASET_DIR, 'active_learning_data.yaml')
 
-    # 1. Check if we have new data to train on
-    if not os.path.exists(classes_file) or not os.listdir(img_dir):
-        print("No new dataset found. Skipping training.")
-        return
+def generate_yaml():
+    print("📝 Generating dynamic data.yaml...")
+    
+    # Start with the base classes
+    all_classes = list(BASE_CLASSES)
+    
+    # Read dynamically added classes from the Flask app
+    if os.path.exists(CLASSES_JSON_PATH):
+        with open(CLASSES_JSON_PATH, 'r') as f:
+            new_classes = json.load(f)
 
-    with open(classes_file, 'r') as f:
-        new_classes = json.load(f)
+            # Sort new classes from JSON to keep mapping stable
+            sorted_new = sorted(new_classes.items(), key=lambda item: item[1])
+            for name, old_id in sorted_new:
+                        if name not in all_classes:
+                            all_classes.append(name)     
+                
+    # Build the YAML structure
+    yaml_data = {
+        'path': DATASET_DIR,
+        'train': 'images',  # YOLO will look in dataset/images
+        'val': 'images',    # For fine-tuning, validating on the training set is acceptable
+        'nc': len(all_classes),
+        'names': all_classes
+    }
+    
+    # Write to file
+    with open(YAML_OUTPUT_PATH, 'w') as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+        
+    print(f"✅ YAML generated successfully with {len(all_classes)} total classes.")
+    return YAML_OUTPUT_PATH
 
-    # 2. Fix dynamic label IDs for YOLO (Mapping 100+ back to 0, 1, 2...)
-    id_mapping = {}
-    class_names = []
-    for idx, (name, old_id) in enumerate(sorted(new_classes.items(), key=lambda item: item[1])):
-        id_mapping[str(old_id)] = str(idx)
-        class_names.append(name)
-
-    for txt_name in os.listdir(lbl_dir):
-        if txt_name.endswith('.txt'):
-            filepath = os.path.join(lbl_dir, txt_name)
-            with open(filepath, 'r') as f:
-                lines = f.readlines()
-            
-            with open(filepath, 'w') as f: # Overwrite with corrected 0-indexed IDs
-                for line in lines:
-                    parts = line.strip().split()
-                    if parts and parts[0] in id_mapping:
-                        parts[0] = id_mapping[parts[0]]
-                        f.write(" ".join(parts) + "\n")
-
-    # 3. Build the YOLO YAML configuration
-    yaml_content = f"""
-train: {img_dir}
-val: {img_dir}
-
-nc: {len(class_names)}
-names: {class_names}
-    """
-    with open(yaml_path, 'w') as f:
-        f.write(yaml_content)
-
-    print("==================================================")
-    print("🚦 PAUSING LIVE INFERENCE TO FREE UP CPU")
-    print("==================================================")
-    try:
-        requests.post(f"{FLASK_URL}/api/maintenance/pause", timeout=5)
-    except requests.exceptions.RequestException:
-        print("⚠️ Could not contact Flask server. Is it running?")
-        return
-
-    # 4. Train the model with strict Mini PC constraints
+def start_training():
+    print("🚀 Initiating Background Training Sequence...")
+    
+    # 1. Generate the config
+    yaml_path = generate_yaml()
+    
+    # 2. Load the EXISTING model to build upon it (Transfer Learning)
+    print("🧠 Loading base model (native.pt)...")
     model = YOLO('native.pt')
     
-    # We use very strict parameters to prevent the Dell Wyse from crashing
+    # 3. Train the model
+    # Note: We use freeze=10 to lock the early layers. This prevents the model 
+    # from "forgetting" the original bugs while it learns the new ones.
+    print("⚙️ Training YOLO model...")
     results = model.train(
         data=yaml_path,
-        epochs=15,          
-        imgsz=320,          
-        device='cpu',       
-        workers=1,          
-        batch=2,            
-        project='runs',
-        name='active_update',
-        exist_ok=True       
+        epochs=30,          # Fewer epochs needed since we are just fine-tuning
+        imgsz=640,
+        batch=8,
+        project='runs/active_learning',
+        name='update',
+        exist_ok=True,
+        freeze=10           # Freezes the backbone to prevent catastrophic forgetting
     )
-
-    # 5. Move the newly trained brain to the root folder
-    new_weights = os.path.join('runs', 'active_update', 'weights', 'best.pt')
+    
+    # 4. Safely copy the newly trained weights
+    new_weights = os.path.join('runs', 'detect', 'runs', 'active_learning', 'update', 'weights', 'best.pt')
+    updated_model_path = 'native_updated.pt'
+    
     if os.path.exists(new_weights):
-        shutil.copy(new_weights, 'new_best.pt')
-        print("✅ Training complete! 'new_best.pt' generated.")
+        shutil.copy(new_weights, updated_model_path)
+        print(f"🎉 Training complete! New model saved as {updated_model_path}")
+        
+        # 5. Ping Flask to hot-swap the model
+        try:
+            response = requests.post('http://127.0.0.1:5000/api/maintenance/resume', 
+                                     json={'model_path': updated_model_path})
+            if response.status_code == 200:
+                print("✅ Flask system successfully hot-swapped to the new model.")
+            else:
+                print(f"⚠️ Flask returned status {response.status_code} on resume.")
+        except Exception as e:
+            print(f"⚠️ Failed to auto-resume Flask (Is the server running?): {e}")
 
-    print("==================================================")
-    print("▶️ RESUMING LIVE INFERENCE WITH NEW MODEL")
-    print("==================================================")
-    try:
-        requests.post(f"{FLASK_URL}/api/maintenance/resume", json={'model_path': 'new_best.pt'}, timeout=10)
-    except requests.exceptions.RequestException:
-        print("⚠️ Could not contact Flask server to resume.")
-
-if __name__ == '__main__':
-    run_active_learning()
+if __name__ == "__main__":
+    start_training()

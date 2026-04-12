@@ -8,8 +8,10 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Round" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+    rel="stylesheet">
+
   <style>
     :root {
       --primary: #2e7d32;
@@ -22,7 +24,9 @@
       --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       background-color: var(--bg-color);
@@ -37,7 +41,7 @@
     header {
       background-color: var(--card-bg);
       padding: 15px 5%;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       display: flex;
       justify-content: center;
       position: sticky;
@@ -95,10 +99,14 @@
 
     /* File Upload Zone - FIXED FLEXBOX LAYOUT */
     .file-drop-zone {
-      display: flex;               /* Forces Flex Layout */
-      flex-direction: column;      /* Stacks items vertically */
-      align-items: center;         /* Centers items horizontally */
-      justify-content: center;     /* Centers items vertically */
+      display: flex;
+      /* Forces Flex Layout */
+      flex-direction: column;
+      /* Stacks items vertically */
+      align-items: center;
+      /* Centers items horizontally */
+      justify-content: center;
+      /* Centers items vertically */
       background-color: #f9fafb;
       border: 2px dashed #a5d6a7;
       border-radius: 12px;
@@ -107,7 +115,8 @@
       cursor: pointer;
       transition: all 0.2s ease;
       position: relative;
-      min-height: 200px;           /* Ensures a good click area */
+      min-height: 200px;
+      /* Ensures a good click area */
     }
 
     .file-drop-zone:hover {
@@ -118,7 +127,10 @@
     /* The actual file input is hidden but covers the whole box */
     .file-drop-zone input[type="file"] {
       position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       opacity: 0;
       cursor: pointer;
       z-index: 2;
@@ -142,9 +154,17 @@
       color: var(--text-light);
     }
 
+    .preview-container {
+      display: none;
+      margin-top: 20px;
+    }
+
+
     /* Image Preview */
     .preview-container.show {
       display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .preview-container img {
@@ -162,7 +182,8 @@
       margin-top: 25px;
     }
 
-    button, .btn {
+    button,
+    .btn {
       padding: 12px;
       border: none;
       border-radius: 8px;
@@ -174,16 +195,21 @@
       font-size: 1rem;
       transition: transform 0.1s;
     }
-    
-    button:active, .btn:active { transform: scale(0.98); }
+
+    button:active,
+    .btn:active {
+      transform: scale(0.98);
+    }
 
     .btn-submit {
       background-color: var(--primary);
       color: white;
       width: 100%;
     }
-    
-    .btn-submit:hover { background-color: #1b5e20; }
+
+    .btn-submit:hover {
+      background-color: #1b5e20;
+    }
 
     .btn-cancel {
       background-color: white;
@@ -191,7 +217,10 @@
       color: var(--text-light);
     }
 
-    .btn-cancel:hover { background-color: #f3f4f6; color: var(--text-dark); }
+    .btn-cancel:hover {
+      background-color: #f3f4f6;
+      color: var(--text-dark);
+    }
 
 
     /* RESULT COLUMN STYLES */
@@ -223,7 +252,7 @@
       font-size: 0.9rem;
       color: var(--text-dark);
     }
-    
+
     .classification-info span {
       background: var(--primary-light);
       padding: 4px 10px;
@@ -256,11 +285,25 @@
       border-top: 4px solid #ccc;
     }
 
-    .border-cultural { border-color: #8d6e63; }
-    .border-bio { border-color: #66bb6a; }
-    .border-sanitation { border-color: #29b6f6; }
-    .border-mech { border-color: #ffa726; }
-    .border-chem { border-color: #ef5350; }
+    .border-cultural {
+      border-color: #8d6e63;
+    }
+
+    .border-bio {
+      border-color: #66bb6a;
+    }
+
+    .border-sanitation {
+      border-color: #29b6f6;
+    }
+
+    .border-mech {
+      border-color: #ffa726;
+    }
+
+    .border-chem {
+      border-color: #ef5350;
+    }
 
     .treatment-box label {
       display: block;
@@ -309,9 +352,18 @@
 
     /* RESPONSIVE */
     @media (max-width: 900px) {
-      .main-grid { grid-template-columns: 1fr; }
-      .upload-card { position: static; order: 1; }
-      .result-card { order: 2; }
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .upload-card {
+        position: static;
+        order: 1;
+      }
+
+      .result-card {
+        order: 2;
+      }
     }
   </style>
 </head>
@@ -321,21 +373,22 @@
   <header>
     <h1>🍍 PINEPESTIFY <span style="font-weight:400; font-size: 0.8em; opacity: 0.7;">| Upload</span></h1>
   </header>
-  
+
   <div class="main-grid">
-    
+
     <div class="card upload-card">
       <div class="card-title">Select Image</div>
 
       <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
-        
+
         <label for="file-upload" class="file-drop-zone">
           <input type="file" name="file" id="file-upload" accept="image/*" required onchange="previewImage(event)">
-          
+
           <svg class="upload-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+            <path
+              d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
           </svg>
-          
+
           <div class="upload-text">Click to browse or drag file here</div>
         </label>
 
@@ -352,57 +405,58 @@
     </div>
 
     <div class="card result-card">
-      
+
       {% if error %}
-        <div class="alert-error">
-          {{ error }}
-        </div>
+      <div class="alert-error">
+        {{ error }}
+      </div>
       {% endif %}
 
       {% if pest %}
-        <div class="result-header">
-          <h2 class="pest-name">{{ pest.common_name }}</h2>
-          <p class="sci-name">{{ pest.scientific_name }}</p>
-          
-          <div class="classification-info">
-            <div>Order: <span>{{ pest.order_name }}</span></div>
-            <div>Family: <span>{{ pest.family }}</span></div>
-          </div>
-        </div>
+      <div class="result-header">
+        <h2 class="pest-name">{{ pest.common_name }}</h2>
+        <p class="sci-name">{{ pest.scientific_name }}</p>
 
-        <div class="section-label">Treatment Recommendations</div>
-
-        <div class="treatments-grid">
-          <div class="treatment-box border-cultural">
-            <label>Cultural Methods</label>
-            <p>{{ pest.cultural_methods or "N/A" }}</p>
-          </div>
-          <div class="treatment-box border-bio">
-            <label>Biological Control</label>
-            <p>{{ pest.biological_control or "N/A" }}</p>
-          </div>
-          <div class="treatment-box border-sanitation">
-            <label>Sanitation</label>
-            <p>{{ pest.sanitation or "N/A" }}</p>
-          </div>
-          <div class="treatment-box border-mech">
-            <label>Mechanical Control</label>
-            <p>{{ pest.mechanical_control or "N/A" }}</p>
-          </div>
-          <div class="treatment-box border-chem">
-            <label>Chemical Control</label>
-            <p>{{ pest.chemical_control or "N/A" }}</p>
-          </div>
+        <div class="classification-info">
+          <div>Order: <span>{{ pest.order_name }}</span></div>
+          <div>Family: <span>{{ pest.family }}</span></div>
         </div>
+      </div>
+
+      <div class="section-label">Treatment Recommendations</div>
+
+      <div class="treatments-grid">
+        <div class="treatment-box border-cultural">
+          <label>Cultural Methods</label>
+          <p>{{ pest.cultural_methods or "N/A" }}</p>
+        </div>
+        <div class="treatment-box border-bio">
+          <label>Biological Control</label>
+          <p>{{ pest.biological_control or "N/A" }}</p>
+        </div>
+        <div class="treatment-box border-sanitation">
+          <label>Sanitation</label>
+          <p>{{ pest.sanitation or "N/A" }}</p>
+        </div>
+        <div class="treatment-box border-mech">
+          <label>Mechanical Control</label>
+          <p>{{ pest.mechanical_control or "N/A" }}</p>
+        </div>
+        <div class="treatment-box border-chem">
+          <label>Chemical Control</label>
+          <p>{{ pest.chemical_control or "N/A" }}</p>
+        </div>
+      </div>
 
       {% else %}
-        <div class="empty-state">
-           <svg class="empty-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-           </svg>
-          <h3>Waiting for Image</h3>
-          <p>Upload a clear photo of the pest to see analysis and treatment recommendations here.</p>
-        </div>
+      <div class="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
+        </svg>
+        <h3>Waiting for Image</h3>
+        <p>Upload a clear photo of the pest to see analysis and treatment recommendations here.</p>
+      </div>
       {% endif %}
 
     </div>
@@ -411,59 +465,165 @@
   <script>
     function previewImage(event) {
       var reader = new FileReader();
-      reader.onload = function(){
+      reader.onload = function () {
         var output = document.getElementById('image-preview');
         output.src = reader.result;
         document.getElementById('preview-container').style.display = 'flex';
       };
-      if(event.target.files[0]) {
+      if (event.target.files[0]) {
         reader.readAsDataURL(event.target.files[0]);
       }
     }
   </script>
 
   <style>
-    .manual-modal-overlay { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15,23,42,0.7); backdrop-filter: blur(6px); }
-    .manual-modal-content { background-color: #fff; margin: 5vh auto; padding: 0; border-radius: 20px; width: 90%; max-width: 750px; max-height: 85vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); font-family: "Inter", sans-serif; color: #1e293b; }
-    .manual-header { background: linear-gradient(135deg, #2e7d32, #1b5e20); color: white; padding: 25px 35px; border-radius: 20px 20px 0 0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.1);}
-    .manual-header h2 { margin: 0; font-family: "Poppins", sans-serif; font-size: 1.5rem; display: flex; align-items: center; gap: 12px; font-weight: 700;}
-    .manual-close-btn { background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-    .manual-close-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05);}
-    .manual-body { padding: 35px; text-align: left; }
-    .manual-section { margin-bottom: 30px; background: #f8fafc; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; }
-    .manual-section h3 { color: #2e7d32; font-size: 1.2rem; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px; font-family: "Poppins", sans-serif; font-weight: 700;}
-    .manual-section p { margin: 0 0 12px 0; line-height: 1.6; font-size: 1rem; color: #475569; }
-    .manual-section ul { margin: 0; padding-left: 20px; color: #475569; font-size: 1rem; line-height: 1.7; }
-    .manual-section li { margin-bottom: 8px; }
-    .manual-section li b { color: #1e293b; }
-    
-    /* THE FIX: STRICTLY A FLOATING ACTION BUTTON */
-    .manual-fab { 
-        position: fixed !important; 
-        bottom: 30px !important; 
-        right: 30px !important; 
-        width: auto !important; /* Prevents stretching */
-        background-color: #2e7d32; 
-        color: white; 
-        border: none; 
-        border-radius: 50px !important; 
-        padding: 16px 28px !important; 
-        font-family: "Poppins", sans-serif; 
-        font-weight: 600; 
-        font-size: 1.05rem; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center;
-        gap: 10px; 
-        box-shadow: 0 10px 20px rgba(46, 125, 50, 0.4) !important; 
-        cursor: pointer; 
-        z-index: 9998; 
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+    .manual-modal-overlay {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(6px);
     }
-    .manual-fab:hover { 
-        transform: translateY(-5px) scale(1.02); 
-        background-color: #1b5e20; 
-        box-shadow: 0 15px 25px rgba(46, 125, 50, 0.5) !important;
+
+    .manual-modal-content {
+      background-color: #fff;
+      margin: 5vh auto;
+      padding: 0;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 750px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      font-family: "Inter", sans-serif;
+      color: #1e293b;
+    }
+
+    .manual-header {
+      background: linear-gradient(135deg, #2e7d32, #1b5e20);
+      color: white;
+      padding: 25px 35px;
+      border-radius: 20px 20px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .manual-header h2 {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .manual-close-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .manual-close-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+
+    .manual-body {
+      padding: 35px;
+      text-align: left;
+    }
+
+    .manual-section {
+      margin-bottom: 30px;
+      background: #f8fafc;
+      padding: 25px;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .manual-section h3 {
+      color: #2e7d32;
+      font-size: 1.2rem;
+      margin: 0 0 15px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: "Poppins", sans-serif;
+      font-weight: 700;
+    }
+
+    .manual-section p {
+      margin: 0 0 12px 0;
+      line-height: 1.6;
+      font-size: 1rem;
+      color: #475569;
+    }
+
+    .manual-section ul {
+      margin: 0;
+      padding-left: 20px;
+      color: #475569;
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .manual-section li {
+      margin-bottom: 8px;
+    }
+
+    .manual-section li b {
+      color: #1e293b;
+    }
+
+    /* THE FIX: STRICTLY A FLOATING ACTION BUTTON */
+    .manual-fab {
+      position: fixed !important;
+      bottom: 30px !important;
+      right: 30px !important;
+      width: auto !important;
+      /* Prevents stretching */
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 50px !important;
+      padding: 16px 28px !important;
+      font-family: "Poppins", sans-serif;
+      font-weight: 600;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 10px 20px rgba(46, 125, 50, 0.4) !important;
+      cursor: pointer;
+      z-index: 9998;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .manual-fab:hover {
+      transform: translateY(-5px) scale(1.02);
+      background-color: #1b5e20;
+      box-shadow: 0 15px 25px rgba(46, 125, 50, 0.5) !important;
     }
   </style>
 
@@ -484,8 +644,10 @@
           <ul>
             <li><b>Cameras:</b> Toggles the live video feeds on and off.</li>
             <li><b>Start Detect:</b> Activates the AI to draw bounding boxes around detected bugs.</li>
-            <li><b>Unknown Pests:</b> If an unregistered pest is detected, the system captures it, sends it to an external AI for analysis, and logs the new data.</li>
-            <li><b>Reload Model:</b> Click this after "Active Learning" completes to update the system with new pest intelligence.</li>
+            <li><b>Unknown Pests:</b> If an unregistered pest is detected, the system captures it, sends it to an
+              external AI for analysis, and logs the new data.</li>
+            <li><b>Reload Model:</b> Click this after "Active Learning" completes to update the system with new pest
+              intelligence.</li>
           </ul>
         </div>
         <div class="manual-section">
@@ -500,13 +662,15 @@
         </div>
         <div class="manual-section">
           <h3><span class="material-icons" style="color: #9333ea;">cloud_upload</span> 3. Image Upload</h3>
-          <p>Upload a clear photo of an insect. The AI will instantly analyze the image, identify the species, and generate a comprehensive treatment plan including cultural, biological, and chemical methods.</p>
+          <p>Upload a clear photo of an insect. The AI will instantly analyze the image, identify the species, and
+            generate a comprehensive treatment plan including cultural, biological, and chemical methods.</p>
         </div>
         <div class="manual-section">
           <h3><span class="material-icons" style="color: #059669;">library_books</span> 4. Library & History</h3>
           <ul>
             <li><b>Pest Library:</b> A searchable database of known pests and their specific treatments.</li>
-            <li><b>Detection History:</b> A visual log of every pest detected by the live cameras or uploaded manually, complete with timestamps.</li>
+            <li><b>Detection History:</b> A visual log of every pest detected by the live cameras or uploaded manually,
+              complete with timestamps.</li>
           </ul>
         </div>
         <div class="manual-section">
@@ -514,7 +678,8 @@
           <p>Users logged in as Administrators have access to data management tools.</p>
           <ul>
             <li><b>Add New Pest:</b> Manually create a database entry for a new pest.</li>
-            <li><b>Pest List:</b> A spreadsheet view allowing admins to edit pest details inline or upload new reference images.</li>
+            <li><b>Pest List:</b> A spreadsheet view allowing admins to edit pest details inline or upload new reference
+              images.</li>
           </ul>
         </div>
       </div>
@@ -527,4 +692,5 @@
     function closeManualOutside(event) { if (event.target === document.getElementById('pinePestifyManual')) closeUserManual(); }
   </script>
 </body>
+
 </html>

@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify, Response, make_response
-import sqlite3, os, cv2, threading, atexit, re, datetime, time, json, shutil
+import sqlite3, os, cv2, threading, atexit, re, datetime, time, json, shutil, sys
+from apscheduler.schedulers.background import BackgroundScheduler
+import subprocess
 import numpy as np 
 import base64 
 import smtplib
@@ -177,8 +179,13 @@ cam_states = {
     "CAM 2": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0, "last_email_time": 0},
     "CAM 3": {"detected_pest": "", "timeout": 0, "confidence": 0.0, "ai_override": None, "ai_processing": False, "ai_cache": None, "last_request": 0, "last_logged": None, "last_log_time": 0}
 }
+# NEW: Track how many times a pest is confidently seen before approving it
+temporal_counts = {
+    "CAM 1": {}, "CAM 2": {}, "CAM 3": {}
+}
 
 # ================== ACTIVE LEARNING HELPERS ==================
+BASE_CLASS_COUNT = 12
 
 def get_or_create_class_id(pest_name):
     """Assigns a permanent integer ID to a new pest for YOLO training."""
@@ -188,8 +195,7 @@ def get_or_create_class_id(pest_name):
             classes = json.load(f)
     
     if pest_name not in classes:
-        # Start new IDs at 100 to avoid clashing with base model classes
-        new_id = 100 + len(classes)
+        new_id = BASE_CLASS_COUNT + len(classes)
         classes[pest_name] = new_id
         with open(ACTIVE_LEARNING_CLASSES_FILE, 'w') as f:
             json.dump(classes, f)
@@ -201,10 +207,18 @@ def check_dataset_threshold(pest_name, threshold=50):
     class_id = get_or_create_class_id(pest_name)
     count = 0
     for txt_file in os.listdir(DATASET_LBL_DIR):
-        if txt_file.endswith(".txt"):
-            with open(os.path.join(DATASET_LBL_DIR, txt_file), 'r') as f:
-                if f.read().startswith(f"{class_id} "):
-                    count += 1
+            if txt_file.endswith(".txt"):
+                filepath = os.path.join(DATASET_LBL_DIR, txt_file)
+                try:
+                    with open(filepath, 'r') as f:
+                        content = f.read().strip()
+                        if content:
+                            # Split by whitespace and check the first element (the ID)
+                            first_val = content.split()[0]
+                            if first_val == str(class_id):
+                                count += 1
+                except (IndexError, IOError):
+                    continue
     
     if count >= threshold:
         print(f"🌟 ACTIVE LEARNING ALERT: Accumulated {count} images for {pest_name}! Ready for retraining.")
@@ -463,7 +477,8 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         "biological_control": "Natural predators or biological agents 1-2 sentence",
         "sanitation": "Cleaning and removal advice 1-2 sentence",
         "mechanical_control": "Physical traps or barriers 1-2 sentence",
-        "chemical_control": "Pesticides or chemical deterrents 1-2 sentence"
+        "chemical_control": "Pesticides or chemical deterrents 1-2 sentence",
+        "confidence_score": 95
     }
 
     # --- THE STRICT VISION PROMPT ---
@@ -476,21 +491,30 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
     2. DO NOT identify plant diseases, viruses, fungi, rot, or wilt.
     3. If the subject is a plant, leaf, crop, or plant disease, you MUST return "common_name": "N/A".
     4. Return ONLY valid JSON in this exact format: {json.dumps(json_structure)}
+    "confidence_score" MUST be an integer from 0 to 100 representing your certainty. If the image is blurry, dark, or ambiguous, return a score below 50.
     """
 
+    # --- SCENARIO A: VISION ANALYSIS ---
     if (pest_name.lower() in ["unknown", "negative"]) and image_path:
-        print(f"AI Vision: Analyzing image...")
-        
-        # 1. Try Gemini Vision (Primary)
+        print(f"🚀 AI Vision: Starting multi-model analysis for {image_path}...")
+
+        # 1. PREPARE BASE64 (Do this once for all fallbacks)
+        try:
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+        except Exception as e:
+            print(f"❌ Critical Error: Could not encode image: {e}")
+            return None
+
+        # 2. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
             # Using current supported models
-            gemini_candidates = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']
+            gemini_candidates = ['gemini-2.0-flash', 'gemini-1.5-flash']
             try:
                 img = PIL.Image.open(image_path)
                 for model_name in gemini_candidates:
                     try:
                         print(f"   ...Trying Gemini: {model_name}")
-                        # New GenAI SDK syntax
                         response = gemini_client.models.generate_content(
                             model=model_name,
                             contents=[vision_prompt, img]
@@ -500,21 +524,16 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                         if "429" in str(e) or "quota" in str(e).lower():
                             print(f"   ⚠️ Quota Hit on {model_name}.")
                             continue 
-                        else:
-                            print(f"   ❌ Error with {model_name}: {e}")
+                        print(f"   ❌ Error with {model_name}: {e}")
             except Exception as e:
                 print(f"❌ Gemini Vision Critical Fail: {e}")
 
-        # 2. Try OpenRouter Free Vision (Fallback 1)
+        # 3. Try OpenRouter Free Vision (Fallback 1)
         if OPENROUTER_API_KEY:
-            print("   👉 Switching to OpenRouter Free Vision...")
+            print("   👉 Switching to OpenRouter (Free Vision)...")
             try:
-                with open(image_path, "rb") as image_file:
-                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-
                 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
                 response = client.chat.completions.create(
-                    # Using the dynamic free endpoint to prevent 404 deprecation errors
                     model="openrouter/free",
                     messages=[{
                         "role": "user",
@@ -529,14 +548,11 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 if content: return json.loads(clean_json_text(content))
             except Exception as e: print(f"OpenRouter failed: {e}")
 
-        # 3. Try Groq Vision (Fallback 2)
+        # 4. Try Groq Vision (Fallback 2)
         if GROQ_API_KEY:
-            print("   👉 Switching to Groq Vision...")
+            print("   👉 Switching to Groq (Llama 3.2 Vision)...")
             try:
                 client = Groq(api_key=GROQ_API_KEY)
-                with open(image_path, "rb") as image_file:
-                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-
                 chat_completion = client.chat.completions.create(
                     messages=[{
                         "role": "user",
@@ -545,7 +561,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                         ]
                     }],
-                    model="meta-llama/llama-4-scout-17b-16e-instruct",
+                    model="llama-3.2-11b-vision-preview",
                     temperature=0,
                     response_format={"type": "json_object"} 
                 )
@@ -553,13 +569,10 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 if content: return json.loads(clean_json_text(content))
             except Exception as e: print(f"Groq Vision failed: {e}")
 
-        # 4. Try GitHub Models (Fallback 3)
+        # 5. Try GitHub Models (Fallback 3)
         if GITHUB_TOKEN:
-            print("   👉 Switching to GitHub Models...")
+            print("   👉 Switching to GitHub (Llama 3.2 90B)...")
             try:
-                with open(image_path, "rb") as image_file:
-                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-
                 client = OpenAI(base_url="https://models.inference.ai.azure.com", api_key=GITHUB_TOKEN)
                 response = client.chat.completions.create(
                     messages=[{
@@ -576,8 +589,8 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                 if content: return json.loads(clean_json_text(content))
             except Exception as e: print(f"GitHub Models failed: {e}")
 
-        # 5. Try Ollama (Local Backup)
-        print("Switching to Local Ollama...")
+        # 6. Try Ollama (Local Backup)
+        print("   👉 Final Fallback: Local Ollama...")
         try:
             response = ollama.chat(
                 model='llama3.2-vision',
@@ -586,10 +599,10 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
             return json.loads(clean_json_text(response['message']['content']))
         except Exception as e: print(f"Ollama failed: {e}")
 
-        print("All AI Vision models failed.")
+        print("❌ All AI Vision models failed.")
         return None
 
-    # --- SCENARIO B: TEXT LOOKUP ---
+    # --- SCENARIO B: TEXT LOOKUP (If pest_name is already known) ---
     system_prompt = f"""
     You are an expert Pineapple agronomy AI. Provide management details for the pest '{pest_name}'.
     CRITICAL: If '{pest_name}' is a plant, crop, leaf, or plant disease, return "common_name": "N/A".
@@ -599,11 +612,11 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
     if GENAI_API_KEY:
         try:
             response = gemini_client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-1.5-flash',
                 contents=system_prompt
             )
             return json.loads(clean_json_text(response.text))
-        except: pass
+        except: pass         
 
     if GROQ_API_KEY:
         try:
@@ -648,96 +661,92 @@ def process_unknown_pest_background(image_path, cam_id, x1, y1, x2, y2, frame_w,
     try:
         ai_data = fetch_pest_info_from_ai("Unknown", image_path=image_path)
 
-        # --- NEW: HARDCODED SAFETY FILTER ---
-        if ai_data:
-            c_name = str(ai_data.get('common_name', '')).lower()
-            cls_name = str(ai_data.get('classification', '')).lower()
-            forbidden_words = ['disease', 'wilt', 'rot', 'virus', 'fungus', 'plant', 'leaf', 'pineapple', 'crop']
-            
-            if any(word in c_name or word in cls_name for word in forbidden_words):
-                print(f"🚫 BLOCKED: AI attempted to log a plant/disease ({c_name}). Ignored.")
-                ai_data['common_name'] = "N/A" # Force it to fail the next check
-
+# --- NEW: COMBINED SAFETY CHECKS ---
         if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None]:
             identified_name = ai_data.get('common_name').strip()
-            print(f"✅ AI Identified on {cam_id}: {identified_name}")
             
-            filename = os.path.basename(image_path)
-            log_detection_event(identified_name, f"uploads/{filename}", "Live AI Detection", camera_id=cam_id)
+            # Extract the confidence score (default to 0 if the AI messes up)
+            confidence = int(ai_data.get('confidence_score', 0))
             
-            cam_states[cam_id]["ai_cache"] = ai_data
-
-            try:
-                with db_lock:
-                    conn = sqlite3.connect(DATABASE, timeout=30) 
-                    c = conn.cursor()
-
-                    db_image_path = f"uploads/{filename}"
+            # CHECK 1: Is the AI confident enough?
+            if confidence >= 85: 
+                
+                # Initialize or increment the temporal counter for this specific camera & pest
+                counts = temporal_counts[cam_id]
+                counts[identified_name] = counts.get(identified_name, 0) + 1
+                current_count = counts[identified_name]
+                
+                print(f"🔍 AI saw {identified_name} on {cam_id} (Confidence: {confidence}%). Verification: {current_count}/3")
+                
+                # CHECK 2: Has it been seen 3 times?
+                if current_count >= 3:
+                    print(f"✅ FULLY VERIFIED: {identified_name} passed all temporal and confidence checks!")
                     
-                    c.execute("SELECT id FROM pests WHERE common_name = ?", (identified_name,))
-                    if not c.fetchone():
-                        c.execute('''INSERT INTO pests (type, 
-                            common_name, scientific_name, order_name, family, classification,
-                            cultural_methods, biological_control, sanitation, mechanical_control, chemical_control, image, yolo_name
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
-                            "Non-Native Species", identified_name, 
-                            ai_data.get('scientific_name', 'N/A'), ai_data.get('order_name', 'N/A'), 
-                            ai_data.get('family', 'N/A'), ai_data.get('classification', 'Non-Native/Intruder'), 
-                            ai_data.get('cultural_methods', '—'), ai_data.get('biological_control', '—'), 
-                            ai_data.get('sanitation', '—'), ai_data.get('mechanical_control', '—'), 
-                            ai_data.get('chemical_control', '—'), db_image_path, identified_name 
-                        ))
-                        conn.commit()
-                        print(f"💾 Saved '{identified_name}' to Database for future lookup.")
-                    conn.close()
-            except Exception as db_e:
-                print(f"⚠️ Database Save Failed: {db_e}")
+                    filename = os.path.basename(image_path)
+                    log_detection_event(identified_name, f"uploads/{filename}", "Live AI Detection", camera_id=cam_id)
+                    
+                    cam_states[cam_id]["ai_cache"] = ai_data
+                    cam_states[cam_id]["ai_override"] = identified_name
+                    cam_states[cam_id]["detected_pest"] = identified_name
+                    cam_states[cam_id]["last_logged"] = identified_name
+                    cam_states[cam_id]["last_log_time"] = time.time()
 
-            cam_states[cam_id]["ai_override"] = identified_name
-            cam_states[cam_id]["detected_pest"] = identified_name
-            
-            log_detection_event(
-                pest_name=identified_name, 
-                image_path=f"uploads/{filename}", 
-                detection_type="AI Vision Fallback", 
-                camera_id=cam_id
-            )
-            
-            cam_states[cam_id]["last_logged"] = identified_name
-            cam_states[cam_id]["last_log_time"] = time.time()
-            
-            # ==============================================================
-            # --- ACTIVE LEARNING PIPELINE (DATA ACCUMULATION) ---
-            # ==============================================================
-            try:
-                class_id = get_or_create_class_id(identified_name)
-                
-                # Math to calculate YOLO normalized format
-                x_center = ((x1 + x2) / 2.0) / frame_w
-                y_center = ((y1 + y2) / 2.0) / frame_h
-                width_norm = (x2 - x1) / frame_w
-                height_norm = (y2 - y1) / frame_h
-                
-                base_name = os.path.splitext(filename)[0]
-                
-                # Save Image to Dataset Directory
-                shutil.copy(image_path, os.path.join(DATASET_IMG_DIR, f"{base_name}.jpg"))
-                
-                # Create and save Label .txt to Dataset Directory
-                label_path = os.path.join(DATASET_LBL_DIR, f"{base_name}.txt")
-                with open(label_path, "w") as f:
-                    f.write(f"{class_id} {x_center:.6f} {y_center:.6f} {width_norm:.6f} {height_norm:.6f}\n")
-                
-                # Check if we have hit the retraining threshold
-                check_dataset_threshold(identified_name)
-            except Exception as al_err:
-                print(f"⚠️ Active Learning Accumulation Failed: {al_err}")
+                    # --- DB SAVE ---
+                    try:
+                        with db_lock:
+                            conn = sqlite3.connect(DATABASE, timeout=30) 
+                            c = conn.cursor()
+                            db_image_path = f"uploads/{filename}"
+                            c.execute("SELECT id FROM pests WHERE common_name = ?", (identified_name,))
+                            if not c.fetchone():
+                                c.execute('''INSERT INTO pests (type, 
+                                    common_name, scientific_name, order_name, family, classification,
+                                    cultural_methods, biological_control, sanitation, mechanical_control, chemical_control, image, yolo_name
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
+                                    "Non-Native Species", identified_name, 
+                                    ai_data.get('scientific_name', 'N/A'), ai_data.get('order_name', 'N/A'), 
+                                    ai_data.get('family', 'N/A'), ai_data.get('classification', 'Non-Native/Intruder'), 
+                                    ai_data.get('cultural_methods', '—'), ai_data.get('biological_control', '—'), 
+                                    ai_data.get('sanitation', '—'), ai_data.get('mechanical_control', '—'), 
+                                    ai_data.get('chemical_control', '—'), db_image_path, identified_name 
+                                ))
+                                conn.commit()
+                                print(f"💾 Saved '{identified_name}' to Database for future lookup.")
+                            conn.close()
+                    except Exception as db_e:
+                        print(f"⚠️ Database Save Failed: {db_e}")
 
+                    # --- ACTIVE LEARNING PIPELINE ---
+                    try:
+                        class_id = get_or_create_class_id(identified_name)
+                        x_center = ((x1 + x2) / 2.0) / frame_w
+                        y_center = ((y1 + y2) / 2.0) / frame_h
+                        width_norm = (x2 - x1) / frame_w
+                        height_norm = (y2 - y1) / frame_h
+                        base_name = os.path.splitext(filename)[0]
+                        
+                        shutil.copy(image_path, os.path.join(DATASET_IMG_DIR, f"{base_name}.jpg"))
+                        label_path = os.path.join(DATASET_LBL_DIR, f"{base_name}.txt")
+                        with open(label_path, "w") as f:
+                            f.write(f"{class_id} {x_center:.6f} {y_center:.6f} {width_norm:.6f} {height_norm:.6f}\n")
+                            f.flush() # Forces the buffer to write to the file
+                            os.fsync(f.fileno())
+                        check_dataset_threshold(identified_name)
+                    except Exception as al_err:
+                        print(f"⚠️ Active Learning Accumulation Failed: {al_err}")
+
+                    # Reset the counter so it doesn't instantly trigger again
+                    temporal_counts[cam_id][identified_name] = 0
+                
+                else:
+                    pass # High confidence, but waiting for 3rd strike
+                    
+            else:
+                print(f"⚠️ AI Low Confidence ({confidence}%) for {identified_name}. Discarding to prevent false positive.")
     except Exception as e:
         print(f"❌ Critical Background Error on {cam_id}: {e}")
     finally:
         cam_states[cam_id]["ai_processing"] = False
-
 # ================== DB INIT & PATCHING ==================
 def init_databases():
     admin_db_path = os.path.join(DB_DIR, 'admin_db.db')
@@ -809,7 +818,7 @@ try:
     model = YOLO('native.pt')
     print("✅ Custom Pest Model Loaded")
 except:
-    print("⚠️ WARNING: datapest.pt not found. Detection will fail.")
+    print("⚠️ WARNING: native.pt not found. Detection will fail.")
     model = None
 
 # ================== LOGGING & CAMERA ==================
@@ -913,22 +922,6 @@ def process_camera_frame(frame, cam_id):
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
                     continue
-    if model:
-        # Run YOLO inference
-        results = model(frame, stream=True, conf=0.25, verbose=False, agnostic_nms=True)
-        
-        for r in results:
-            for box in r.boxes:
-                cls_id = int(box.cls[0].item())
-                conf = float(box.conf[0].item())
-                raw_label = r.names[cls_id]
-                
-                # Apply your mapping (e.g., merging clusters or life stages)
-                label = PEST_ALIASES.get(raw_label, raw_label)
-                
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                if not is_detection_logical(raw_label, (x2-x1), (y2-y1), 640, 480):
-                    continue
 
                 # Scenario A: High Confidence Known Pest
                 if conf > 0.70:
@@ -967,7 +960,7 @@ def process_camera_frame(frame, cam_id):
                                 display_text, color = "Analyzing..." if state["ai_processing"] else "Unknown", (0, 0, 255)
                                 
                                 now = time.time()
-                                if not state["ai_processing"] and (now - state["last_request"] > 10):
+                                if not state["ai_processing"] and (now - state["last_request"] > 3):
                                     state["last_request"] = now
                                     state["ai_processing"] = True
                                     threading.Thread(target=start_ai_analysis_thread, 
@@ -1088,6 +1081,23 @@ def video_feed_3():
 # Replace 'start-btn' with the actual ID of the start button.
 
 # --- ROUTE: Active Learning Maintenance Controls ---
+@app.route('/api/maintenance/train-now', methods=['POST'])
+@login_required 
+def api_train_now():
+    global is_detection_running
+    
+    # 1. Pause the cameras
+    is_detection_running = False
+    
+    # 2. Launch the training script
+    try:
+        script_path = os.path.join(BASE_DIR, 'train_update.py')
+        subprocess.Popen([sys.executable, script_path])
+        return jsonify({'success': True, 'message': 'Background training started! Cameras paused.'})
+    except Exception as e:
+        is_detection_running = True
+        return jsonify({'success': False, 'error': str(e)})
+    
 @app.route('/api/maintenance/pause', methods=['POST'])
 def api_maintenance_pause():
     """Temporarily disables YOLO inference to free up CPU for background training."""
@@ -1643,6 +1653,54 @@ def user_page(): return render_template('user.html')
 @app.route('/index')
 @restrict_url_access
 def index_page(): return render_template('index.html')
+
+# ================== ACTIVE LEARNING SCHEDULER ==================
+
+def trigger_background_training():
+    """Pauses live detection and spawns the training subprocess."""
+    global is_detection_running
+    print("🕒 Scheduled AI Maintenance starting...")
+    is_detection_running = False
+    try:
+        script_path = os.path.join(BASE_DIR, 'train_update.py')
+        subprocess.Popen([sys.executable, script_path])
+        print("🚀 Background training script launched successfully.")
+    except Exception as e:
+        print(f"❌ Failed to launch training script: {e}")
+        is_detection_running = True
+
+def check_if_training_needed_on_startup():
+    TRACKER_FILE = os.path.join(DATASET_DIR, 'last_trained_count.json')
+    
+    if not os.path.exists(DATASET_LBL_DIR):
+        return
+
+    current_count = len([name for name in os.listdir(DATASET_LBL_DIR) if name.endswith('.txt')])
+    
+    # Load how many images we had during the last training
+    last_count = 0
+    if os.path.exists(TRACKER_FILE):
+        with open(TRACKER_FILE, 'r') as f:
+            last_count = json.load(f).get('count', 0)
+
+    # Calculate NEW images only
+    new_images = current_count - last_count
+
+    if new_images >= 30:
+        print(f"⚠️ Startup Check: Found {new_images} NEW images. Initiating catch-up...")
+        
+        # Update the tracker file before starting
+        with open(TRACKER_FILE, 'w') as f:
+            json.dump({'count': current_count}, f)
+            
+        trigger_background_training()
+    else:
+        print(f"✅ Startup Check: Only {new_images} new images found. Skipping auto-train.")
+
+scheduler = BackgroundScheduler(timezone="Asia/Manila")
+scheduler.add_job(func=trigger_background_training, trigger="cron", hour=2, minute=0)
+scheduler.start()
+check_if_training_needed_on_startup()
 
 if __name__ == '__main__':
     def release_cameras():
