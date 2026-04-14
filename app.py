@@ -491,7 +491,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
     2. DO NOT identify plant diseases, viruses, fungi, rot, or wilt.
     3. If the subject is a plant, leaf, crop, or plant disease, you MUST return "common_name": "N/A".
     4. Return ONLY valid JSON in this exact format: {json.dumps(json_structure)}
-    "confidence_score" MUST be an integer from 0 to 100 representing your certainty. If the image is blurry, dark, or ambiguous, return a score below 50.
+    "confidence_score" MUST be a float from 0 to 100 (e.g., 98.5) representing your certainty.
     """
 
     # --- SCENARIO A: VISION ANALYSIS ---
@@ -509,7 +509,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         # 2. Try Gemini Vision (Primary)
         if GENAI_API_KEY:
             # Using current supported models
-            gemini_candidates = ['gemini-2.0-flash', 'gemini-1.5-flash']
+            gemini_candidates = ['gemini-3-flash-preview', 'gemini-2.5-flash']
             try:
                 img = PIL.Image.open(image_path)
                 for model_name in gemini_candidates:
@@ -561,7 +561,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                         ]
                     }],
-                    model="llama-4-scout-17b-16e-instruct",
+                    model="llama-3-vis-70b",
                     temperature=0,
                     response_format={"type": "json_object"} 
                 )
@@ -600,7 +600,8 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
         except Exception as e: print(f"Ollama failed: {e}")
 
         print("❌ All AI Vision models failed.")
-        return None
+        flash("AI was unable to clearly identify the subject. This usually happens if the image is blurry, dark, or does not contain a recognizable pest. Please provide a clearer photo.", "warning")
+        return redirect(url_for('upload'))
 
     # --- SCENARIO B: TEXT LOOKUP (If pest_name is already known) ---
     system_prompt = f"""
@@ -630,7 +631,7 @@ def fetch_pest_info_from_ai(pest_name, image_path=None):
                         ]
                     }],
                     # Replaced unreleased Llama 4 with Groq's active Llama 3.2 Vision model
-                    model="llama-4-scout-17b-16e-instruct",
+                    model="llama3-70b-8192",
                     temperature=0,
                     # Note: response_format JSON mode is sometimes finicky on Groq vision previews, 
                     # but leaving it here is fine since your prompt strictly enforces JSON anyway.
@@ -937,9 +938,9 @@ def process_camera_frame(frame, cam_id):
                         img_name = f"history_{cam_id}_{label}_{timestamp}.jpg"
                         img_path = os.path.join(HISTORY_FOLDER, img_name)
                         cv2.imwrite(img_path, annotated_frame)
-                        log_detection_event(label, f"history/{img_name}", "Live Detection", conf, camera_id=cam_id)
-                        state["last_logged"] = label
-                        state["last_log_time"] = now
+                        #log_detection_event(label, f"history/{img_name}", "Live Detection", conf, camera_id=cam_id)
+                        #state["last_logged"] = label
+                        #state["last_log_time"] = now
 
                         cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(annotated_frame, f"{label} {conf:.2f}", (x1, y1-10), 
@@ -1093,7 +1094,7 @@ def api_maintenance_resume():
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
     try:
-        new_model_path = request.json.get('model_path', 'new_best.pt')  # type: ignore
+        new_model_path = request.json.get('model_path', 'native_updated.pt')
         with frame_lock:
             if os.path.exists(new_model_path):
                 print(f"🔄 Hot-swapping to updated model: {new_model_path}")
@@ -1497,6 +1498,7 @@ def upload():
             image_url = url_for('static', filename='uploads/' + filename)
             
             detected_name = None
+            conf = 0.0
             
             img = cv2.imread(filepath)
             if img is not None:
@@ -1539,6 +1541,7 @@ def upload():
                 
                 if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None, "n/a"]:
                     detected_name = ai_data.get('common_name')
+                    conf = float(ai_data.get('confidence_score', 0)) / 100.0
                     
                     with db_lock:
                     # ... (KEEP THE REST OF YOUR EXISTING CODE BELOW THIS UNCHANGED) ...

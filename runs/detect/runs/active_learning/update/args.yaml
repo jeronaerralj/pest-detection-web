@@ -1,6 +1,6 @@
 task: detect
 mode: train
-model: native.pt
+model: native_updated.pt
 data: C:\Users\LENOVO\THESIS\dataset\active_learning_data.yaml
 epochs: 30
 time: null

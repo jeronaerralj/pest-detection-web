@@ -28,7 +28,7 @@ YAML_OUTPUT_PATH = os.path.join(DATASET_DIR, 'active_learning_data.yaml')
 
 def generate_yaml():
     print("📝 Generating dynamic data.yaml...")
-    
+
     # Start with the base classes
     all_classes = list(BASE_CLASSES)
     
@@ -64,14 +64,18 @@ def start_training():
     
     # 1. Generate the config
     yaml_path = generate_yaml()
+
+    updated_model_path = 'native_updated.pt'
+    base_model_path = 'native.pt'
+
+    # If we already have an updated model, use that as the base for the next round
+    if os.path.exists(updated_model_path):
+        print(f"🧠 Loading the PREVIOUSLY UPDATED model ({updated_model_path})...")
+        model = YOLO(updated_model_path)
+    else:
+        print(f"🧠 Loading the ORIGINAL base model ({base_model_path})...")
+        model = YOLO(base_model_path)
     
-    # 2. Load the EXISTING model to build upon it (Transfer Learning)
-    print("🧠 Loading base model (native.pt)...")
-    model = YOLO('native.pt')
-    
-    # 3. Train the model
-    # Note: We use freeze=10 to lock the early layers. This prevents the model 
-    # from "forgetting" the original bugs while it learns the new ones.
     print("⚙️ Training YOLO model...")
     results = model.train(
         data=yaml_path,

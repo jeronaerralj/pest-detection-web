@@ -128,12 +128,12 @@
             margin-top: 10px;
         }
 
-        .manual {
-            background: var(--accent-blue);
+        .bg-success {
+            background-color: var(--pine-green) !important;
         }
 
-        .live {
-            background: var(--pine-green);
+        .bg-info {
+            background-color: var(--accent-blue) !important;
         }
     </style>
 </head>
@@ -166,7 +166,7 @@
                     <span class="timestamp">{{ log.timestamp }}</span>
 
                     <div style="margin-top: 5px;">
-                        <span class="badge {{ 'live' if (log.confidence|float) > 70 else 'manual' }}"
+                        <span class="badge {{ 'bg-success' if (log.confidence|float) > 70 else 'bg-info' }}"
                             style="font-size: 0.65rem;">
                             {{ "%.1f"|format(log.confidence|float) if log.confidence else "0.0" }}% Confidence
                         </span>
@@ -174,7 +174,7 @@
 
                     <h3>{{ log.yolo_name }}</h3>
 
-                    <div class="badge {{ 'manual' if log.detection_type == 'Manual Upload' else 'live' }}">
+                    <div class="badge {{ 'bg-info' if log.detection_type == 'Manual Upload' else 'bg-success' }}">
                         {{ log.detection_type }}
                     </div>
 
