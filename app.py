@@ -666,8 +666,7 @@ def process_unknown_pest_background(image_path, cam_id, x1, y1, x2, y2, frame_w,
         if ai_data and ai_data.get('common_name') not in ["N/A", "Standard Name", None]:
             identified_name = ai_data.get('common_name').strip()
             
-            # Extract the confidence score (default to 0 if the AI messes up)
-            confidence = int(ai_data.get('confidence_score', 0))
+            confidence = float(ai_data.get('confidence_score', 0)) / 100.0
             
             # CHECK 1: Is the AI confident enough?
             if confidence >= 85: 
@@ -993,6 +992,7 @@ def process_camera_frame(frame, cam_id):
                     pest_name=best_pest, 
                     image_path=f"history/{snap_filename}", 
                     detection_type="Local Model (YOLO)", 
+                    confidence=best_conf,
                     camera_id=cam_id
                 )
                 
