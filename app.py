@@ -185,7 +185,7 @@ temporal_counts = {
 }
 
 # ================== ACTIVE LEARNING HELPERS ==================
-BASE_CLASS_COUNT = 12
+BASE_CLASS_COUNT = 7
 
 def get_or_create_class_id(pest_name):
     """Assigns a permanent integer ID to a new pest for YOLO training."""

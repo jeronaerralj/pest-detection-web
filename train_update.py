@@ -6,16 +6,10 @@ import shutil
 import requests
 from ultralytics import YOLO
 
-# (If native.pt class 0 was "Mealybug", Mealybug must be first here).
 BASE_CLASSES = [
     "Cutworm Larva",
-    "Cutworm Moth",
-    "Flower Thrips",
-    "Gray Borer",
-    "Gray Borer Generic",
     "Mealybug",
     "Mealybug Cluster",
-    "Oriental Fruit Fly",
     "Rhinoceros Beetle",
     "Slug Caterpillar",
     "Weaver Ant",
