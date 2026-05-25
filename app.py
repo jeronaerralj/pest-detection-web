@@ -45,7 +45,8 @@ PEST_ALIASES = {
     "Mealybug": "Pineapple Mealybug",
     "mealybug": "Pineapple Mealybug",
     "mealy bug": "Pineapple Mealybug",
-    "Mealybug Cluster": "Pineapple Mealybug", # Added
+    "Mealybug Cluster": "Pineapple Mealybug",
+    "pineapple mealybug": "Pineapple Mealybug",
     "Giant African Snail": "Giant African Land Snail",
     "African Snail": "Giant African Land Snail",
     "Oryctes Rhinoceros Beetle": "Rhinoceros Beetle",
@@ -1533,7 +1534,7 @@ def upload():
                 if ai_data:
                     c_name = str(ai_data.get('common_name', '')).lower()
                     cls_name = str(ai_data.get('classification', '')).lower()
-                    forbidden_words = ['disease', 'wilt', 'rot', 'virus', 'fungus', 'plant', 'leaf', 'pineapple', 'crop']
+                    forbidden_words = ['disease', 'wilt', 'rot', 'virus', 'fungus', 'plant', 'leaf', 'crop']
                     
                     if any(word in c_name or word in cls_name for word in forbidden_words):
                         print(f"🚫 BLOCKED: AI attempted to log a plant/disease ({c_name}). Ignored.")
